@@ -40,6 +40,10 @@ body {
   transition: background 0.15s;
   color: #8892a4;
   text-decoration: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
 }
 .nav-item:hover { background: #2a2a4a; color: #fff; }
 .nav-item.active { background: #6c63ff22; color: #6c63ff; border-left: 3px solid #6c63ff; }
