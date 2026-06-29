@@ -4,7 +4,7 @@
   "description": "Backoffice — React frontend + Node/Express backend",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "start": "npm start --prefix server",
+    "start": "node server.js",
     "build": "npm run build --prefix client",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client"
   },
