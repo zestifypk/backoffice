@@ -7,6 +7,7 @@ export const GET = withPermission(
   'permissions:read',
   async (_req: NextRequest, _ctx: RouteContext, _auth: JwtPayload) => {
     try {
+      console.log("test");
       const permissions = await permissionRepository.listPermissions();
       return NextResponse.json(permissions);
     } catch (error) {
