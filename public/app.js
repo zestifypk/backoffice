@@ -6,16 +6,70 @@ const NAV = [
   { icon: '⚙️', label: 'Settings' },
 ];
 
+let authToken = localStorage.getItem('access_token');
+
 // Utility to fetch data
 async function fetchAPI(url) {
   try {
-    const res = await fetch(url);
+    const headers = authToken
+      ? {
+          Authorization: `Bearer ${authToken}`,
+        }
+      : {};
+    const res = await fetch(url, { headers });
     if (!res.ok) throw new Error(res.statusText);
     return await res.json();
   } catch (e) {
     console.error(`Error fetching ${url}:`, e);
     return null;
   }
+}
+
+function renderLoginForm() {
+  const container = document.getElementById('usersContainer');
+  container.innerHTML = `
+    <div class="login-box">
+      <h3>Login to Load Users</h3>
+      <p>Use seeded admin credentials to fetch users from database.</p>
+      <form id="loginForm">
+        <label>Email</label>
+        <input type="email" name="email" value="admin@example.com" required />
+        <label>Password</label>
+        <input type="password" name="password" value="Admin@12345" required />
+        <button type="submit">Login & Load Users</button>
+      </form>
+      <div class="error-msg" id="loginError" style="display:none;"></div>
+    </div>
+  `;
+
+  const form = document.getElementById('loginForm');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const email = formData.get('email');
+    const password = formData.get('password');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Login failed');
+      }
+
+      authToken = payload.token;
+      localStorage.setItem('access_token', authToken);
+      await loadUsers();
+    } catch (error) {
+      const errorBox = document.getElementById('loginError');
+      errorBox.style.display = 'block';
+      errorBox.textContent = error.message;
+    }
+  });
 }
 
 // Initialize sidebar navigation
@@ -90,6 +144,20 @@ function renderUsers(users) {
   `;
 }
 
+async function loadUsers() {
+  if (!authToken) {
+    renderLoginForm();
+    return;
+  }
+
+  const users = await fetchAPI('/api/users');
+  if (!users) {
+    renderLoginForm();
+    return;
+  }
+  renderUsers(users);
+}
+
 // Render activity feed
 function renderActivity(activity) {
   const container = document.getElementById('activityContainer');
@@ -119,8 +187,7 @@ async function init() {
   if (stats) renderStats(stats);
   
   // Load and render users
-  const users = await fetchAPI('/api/users');
-  if (users) renderUsers(users);
+  await loadUsers();
   
   // Load and render activity
   const activity = await fetchAPI('/api/activity');
