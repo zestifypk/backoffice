@@ -6,15 +6,25 @@ declare global {
 }
 
 function createPool(): mysql.Pool {
-  return mysql.createPool({
-    host: process.env.DB_HOST ?? 'localhost',
-    port: Number(process.env.DB_PORT ?? '3306'),
+  const base: mysql.PoolOptions = {
     user: process.env.DB_USER ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
     database: process.env.DB_NAME ?? 'backoffice',
     waitForConnections: true,
     connectionLimit: Number(process.env.DB_POOL_MAX ?? '10'),
     queueLimit: 0,
+  };
+
+  // On Hostinger (and most shared hosting), MySQL only allows socket connections.
+  // Set DB_SOCKET to the socket path to bypass TCP auth restrictions.
+  if (process.env.DB_SOCKET) {
+    return mysql.createPool({ ...base, socketPath: process.env.DB_SOCKET });
+  }
+
+  return mysql.createPool({
+    ...base,
+    host: process.env.DB_HOST ?? 'localhost',
+    port: Number(process.env.DB_PORT ?? '3306'),
   });
 }
 
