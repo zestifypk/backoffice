@@ -1,0 +1,17 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: backoffice-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: backoffice
+      MYSQL_USER: backoffice
+      MYSQL_PASSWORD: backoffice123
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
