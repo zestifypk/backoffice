@@ -23,6 +23,16 @@ export async function findRoleByName(name: string): Promise<Role | null> {
   return rows[0] ?? null;
 }
 
+export async function findRolesByNames(names: string[]): Promise<Role[]> {
+  if (names.length === 0) return [];
+  const placeholders = names.map(() => '?').join(', ');
+  const [rows] = await pool.execute<RoleRow[]>(
+    `SELECT id, name, description FROM roles WHERE name IN (${placeholders})`,
+    names
+  );
+  return rows;
+}
+
 export async function findRolesByUserId(userId: number): Promise<Role[]> {
   const [rows] = await pool.execute<RoleRow[]>(
     `SELECT r.id, r.name, r.description
@@ -40,4 +50,30 @@ export async function assignRole(userId: number, roleId: number): Promise<void> 
     `INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)`,
     [userId, roleId]
   );
+}
+
+/**
+ * Replaces all role assignments for a user in a single transaction.
+ * Pass an empty array to strip all roles.
+ */
+export async function setRolesForUser(userId: number, roleIds: number[]): Promise<void> {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.execute(`DELETE FROM user_roles WHERE user_id = ?`, [userId]);
+    if (roleIds.length > 0) {
+      const placeholders = roleIds.map(() => '(?, ?)').join(', ');
+      const values = roleIds.flatMap((rid) => [userId, rid]);
+      await conn.execute(
+        `INSERT IGNORE INTO user_roles (user_id, role_id) VALUES ${placeholders}`,
+        values
+      );
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
