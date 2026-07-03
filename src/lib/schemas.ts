@@ -136,9 +136,84 @@ export const ResetPasswordBodySchema = z
   })
   .openapi('ResetPasswordBody');
 
+// ── Orders ────────────────────────────────────────────────────────────────────
+
+export const OrderTypeSchema = z
+  .enum(['Normal', 'Reversed', 'Replacement', 'Overland'])
+  .openapi({ example: 'Normal' });
+
+export const OrderStatusSchema = z
+  .enum(['pending', 'booked', 'in_transit', 'delivered', 'returned', 'cancelled'])
+  .openapi({ example: 'pending' });
+
+export const OrderSchema = z
+  .object({
+    id:                  z.number().int().openapi({ example: 1 }),
+    reference_number:    z.string().openapi({ example: 'MAT16' }),
+    order_amount:        z.number().openapi({ example: 599 }),
+    order_detail:        z.string().nullable().openapi({ example: 'MOBILE MAT' }),
+    customer_name:       z.string().openapi({ example: 'Abid Hussain' }),
+    customer_phone:      z.string().openapi({ example: '00300440809' }),
+    order_address:       z.string().openapi({ example: 'House No. 39, Street No. 16, Mehmood Booti, Lahore' }),
+    city:                z.string().openapi({ example: 'Lahore' }),
+    items:               z.number().int().openapi({ example: 1 }),
+    airway_bill_copies:  z.number().int().openapi({ example: 1 }),
+    notes:               z.string().nullable().openapi({ example: 'CALL PLEASE' }),
+    address_code:        z.string().nullable().openapi({ example: '1' }),
+    return_address_code: z.string().nullable().openapi({ example: '1' }),
+    order_type:          OrderTypeSchema,
+    booking_weight:      z.number().nullable().openapi({ example: 0.2 }),
+    status:              OrderStatusSchema,
+    created_by:          z.number().nullable().openapi({ example: 1 }),
+    created_at:          z.string().openapi({ format: 'date-time' }),
+    updated_at:          z.string().openapi({ format: 'date-time' }),
+  })
+  .openapi('Order');
+
+export const CreateOrderBodySchema = z
+  .object({
+    reference_number:    z.string().min(1, 'reference_number is required').openapi({ example: 'MAT16' }),
+    order_amount:        z.number({ error: 'order_amount must be a number' }).min(0).openapi({ example: 599 }),
+    order_detail:        z.string().optional().openapi({ example: 'MOBILE MAT' }),
+    customer_name:       z.string().min(1, 'customer_name is required').openapi({ example: 'Abid Hussain' }),
+    customer_phone:      z.string().min(1, 'customer_phone is required').openapi({ example: '00300440809' }),
+    order_address:       z.string().min(1, 'order_address is required').openapi({ example: 'House No. 39, Street No. 16, Mehmood Booti' }),
+    city:                z.string().min(1, 'city is required').openapi({ example: 'Lahore' }),
+    items:               z.number().int().min(1).optional().default(1).openapi({ example: 1 }),
+    airway_bill_copies:  z.number().int().min(1).optional().default(1).openapi({ example: 1 }),
+    notes:               z.string().optional().openapi({ example: 'CALL PLEASE' }),
+    address_code:        z.string().optional().openapi({ example: '1' }),
+    return_address_code: z.string().optional().openapi({ example: '1' }),
+    order_type:          OrderTypeSchema.optional().default('Normal'),
+    booking_weight:      z.number().min(0).optional().openapi({ example: 0.2 }),
+  })
+  .openapi('CreateOrderBody');
+
+export const UpdateOrderBodySchema = z
+  .object({
+    reference_number:    z.string().min(1).optional().openapi({ example: 'MAT16-B' }),
+    order_amount:        z.number().min(0).optional().openapi({ example: 650 }),
+    order_detail:        z.string().optional().openapi({ example: 'MOBILE MAT' }),
+    customer_name:       z.string().min(1).optional().openapi({ example: 'Abid Hussain' }),
+    customer_phone:      z.string().min(1).optional().openapi({ example: '00300440809' }),
+    order_address:       z.string().min(1).optional().openapi({ example: 'House No. 39, Street No. 16' }),
+    city:                z.string().min(1).optional().openapi({ example: 'Lahore' }),
+    items:               z.number().int().min(1).optional().openapi({ example: 1 }),
+    airway_bill_copies:  z.number().int().min(1).optional().openapi({ example: 1 }),
+    notes:               z.string().optional().openapi({ example: 'CALL PLEASE' }),
+    address_code:        z.string().optional().openapi({ example: '1' }),
+    return_address_code: z.string().optional().openapi({ example: '1' }),
+    order_type:          OrderTypeSchema.optional(),
+    booking_weight:      z.number().min(0).optional().openapi({ example: 0.2 }),
+    status:              OrderStatusSchema.optional(),
+  })
+  .openapi('UpdateOrderBody');
+
 // ── Inferred TypeScript types ─────────────────────────────────────────────────
 
-export type CreateUserInput = z.infer<typeof CreateUserBodySchema>;
-export type UpdateUserInput = z.infer<typeof UpdateUserBodySchema>;
-export type LoginInput = z.infer<typeof LoginBodySchema>;
-export type RegisterInput = z.infer<typeof RegisterBodySchema>;
+export type CreateUserInput   = z.infer<typeof CreateUserBodySchema>;
+export type UpdateUserInput   = z.infer<typeof UpdateUserBodySchema>;
+export type LoginInput        = z.infer<typeof LoginBodySchema>;
+export type RegisterInput     = z.infer<typeof RegisterBodySchema>;
+export type CreateOrderInput  = z.infer<typeof CreateOrderBodySchema>;
+export type UpdateOrderInput  = z.infer<typeof UpdateOrderBodySchema>;

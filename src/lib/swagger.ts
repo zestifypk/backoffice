@@ -11,6 +11,9 @@ import {
   UpdateUserBodySchema,
   ChangePasswordBodySchema,
   ResetPasswordBodySchema,
+  OrderSchema,
+  CreateOrderBodySchema,
+  UpdateOrderBodySchema,
 } from '@/lib/schemas';
 
 const registry = new OpenAPIRegistry();
@@ -264,6 +267,133 @@ registry.registerPath({
   },
 });
 
+// ── Orders ────────────────────────────────────────────────────────────────────
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/orders',
+  tags: ['Orders'],
+  summary: 'List all orders',
+  description: 'Requires permission: `orders:read`. Supports optional query filters.',
+  request: {
+    query: z.object({
+      status:     z.string().optional().openapi({ example: 'pending', description: 'Filter by status' }),
+      order_type: z.string().optional().openapi({ example: 'Normal', description: 'Filter by order type' }),
+      city:       z.string().optional().openapi({ example: 'Lahore', description: 'Filter by city (partial match)' }),
+    }),
+  },
+  responses: {
+    200: { description: 'Array of orders', content: { 'application/json': { schema: z.array(OrderSchema) } } },
+    401: r401,
+    403: r403,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/orders',
+  tags: ['Orders'],
+  summary: 'Create a new order',
+  description: 'Requires permission: `orders:create`.',
+  request: { body: { required: true, content: { 'application/json': { schema: CreateOrderBodySchema } } } },
+  responses: {
+    201: { description: 'Order created', content: { 'application/json': { schema: OrderSchema } } },
+    400: { description: 'Validation error', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    409: { description: 'Duplicate reference number', content: { 'application/json': { schema: ErrorSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/orders/{id}',
+  tags: ['Orders'],
+  summary: 'Get a single order',
+  description: 'Requires permission: `orders:read`.',
+  request: { params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }) },
+  responses: {
+    200: { description: 'Order object', content: { 'application/json': { schema: OrderSchema } } },
+    401: r401,
+    403: r403,
+    404: r404,
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/orders/{id}',
+  tags: ['Orders'],
+  summary: 'Update an order',
+  description: 'Requires permission: `orders:update`. All fields optional.',
+  request: {
+    params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }),
+    body: { required: true, content: { 'application/json': { schema: UpdateOrderBodySchema } } },
+  },
+  responses: {
+    200: { description: 'Updated order', content: { 'application/json': { schema: OrderSchema } } },
+    400: { description: 'Validation error', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    404: r404,
+    409: { description: 'Duplicate reference number', content: { 'application/json': { schema: ErrorSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/orders/{id}',
+  tags: ['Orders'],
+  summary: 'Delete an order',
+  description: 'Requires permission: `orders:delete`.',
+  request: { params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }) },
+  responses: {
+    200: { description: 'Deleted', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
+    401: r401,
+    403: r403,
+    404: r404,
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/orders/upload',
+  tags: ['Orders'],
+  summary: 'Bulk upload orders from PostEx Excel template',
+  description: 'Requires permission: `orders:create`. Send as `multipart/form-data` with a `file` field containing the `.xlsx` file. Duplicate reference numbers are skipped.',
+  request: {
+    body: {
+      required: true,
+      content: {
+        'multipart/form-data': {
+          schema: z.object({
+            file: z.any().openapi({ type: 'string', format: 'binary', description: 'PostEx .xlsx template file' }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Upload result',
+      content: {
+        'application/json': {
+          schema: z.object({
+            message: z.string(),
+            total:   z.number().int(),
+            created: z.number().int(),
+            skipped: z.number().int(),
+            errors:  z.array(z.object({ row: z.number(), reference: z.string(), reason: z.string() })),
+          }),
+        },
+      },
+    },
+    400: { description: 'No file or wrong file type', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+  },
+});
+
 // ── Access ────────────────────────────────────────────────────────────────────
 
 registry.registerPath({
@@ -363,6 +493,7 @@ export const swaggerSpec = {
   tags: [
     { name: 'Auth', description: 'Authentication endpoints (no permission required)' },
     { name: 'Users', description: 'User CRUD — requires UserManagement role' },
+    { name: 'Orders', description: 'PostEx order management — create, list, update, delete, bulk upload' },
     { name: 'Access', description: 'Roles and permissions catalogue' },
     { name: 'System', description: 'Health, stats, activity' },
   ],
