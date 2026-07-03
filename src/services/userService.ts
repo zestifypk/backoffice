@@ -139,6 +139,35 @@ export async function hardDeleteUser(id: number): Promise<void> {
   log.info({ userId: id }, 'User hard-deleted');
 }
 
+export async function changePassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  log.info({ userId }, 'Changing password');
+
+  const hash = await userRepository.findPasswordHashById(userId);
+  if (!hash) throw makeError('User not found', 404);
+
+  const matches = await bcrypt.compare(currentPassword, hash);
+  if (!matches) throw makeError('Current password is incorrect', 400);
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await userRepository.updatePasswordHash(userId, newHash);
+  log.info({ userId }, 'Password changed');
+}
+
+export async function resetPassword(userId: number, newPassword: string): Promise<void> {
+  log.info({ userId }, 'Resetting password');
+
+  const user = await userRepository.findById(userId);
+  if (!user) throw makeError('User not found', 404);
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await userRepository.updatePasswordHash(userId, newHash);
+  log.info({ userId }, 'Password reset by admin');
+}
+
 /** @deprecated Use createUser or updateUser instead */
 export async function assignRole(data: { userId: number; roleName: string }) {
   const role = await roleRepository.findRoleByName(data.roleName);

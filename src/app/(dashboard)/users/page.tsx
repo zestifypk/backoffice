@@ -21,6 +21,7 @@ import {
   UserCheck,
   UserX,
   RefreshCw,
+  KeyRound,
 } from 'lucide-react';
 import type { User } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -211,6 +212,91 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+// ── Reset Password Button (per-row dialog) ────────────────────────────────────
+
+function ResetPasswordButton({ userId, userName }: { userId: number; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) { setNewPassword(''); setMessage(null); }
+  }
+
+  function handleSubmit(e: React.SyntheticEvent) {
+    e.preventDefault();
+    setMessage(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/users/${userId}/reset-password`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Failed to reset password');
+        setMessage({ type: 'success', text: 'Password reset successfully.' });
+        setNewPassword('');
+      } catch (err) {
+        setMessage({ type: 'error', text: (err as Error).message });
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7 text-muted-foreground hover:text-foreground" />}>
+        <KeyRound className="w-3 h-3" />
+        Reset password
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Reset password</DialogTitle>
+          <DialogDescription>Set a new password for <strong>{userName}</strong>.</DialogDescription>
+        </DialogHeader>
+
+        <form id={`rp-form-${userId}`} onSubmit={handleSubmit} className="space-y-4 pt-1">
+          <div className="space-y-2">
+            <Label htmlFor={`rp-pw-${userId}`}>New password</Label>
+            <Input
+              id={`rp-pw-${userId}`}
+              type="password"
+              placeholder="Min. 8 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+          </div>
+
+          {message && (
+            <p className={`text-sm rounded-md px-3 py-2 border ${
+              message.type === 'success'
+                ? 'text-chart-3 bg-chart-3/10 border-chart-3/30'
+                : 'text-destructive bg-destructive/10 border-destructive/30'
+            }`}>
+              {message.text}
+            </p>
+          )}
+        </form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button type="submit" form={`rp-form-${userId}`} disabled={pending}>
+            {pending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Reset
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Sort icon helper ──────────────────────────────────────────────────────────
 
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | false }) {
@@ -310,6 +396,14 @@ function useColumns(): ColumnDef<User>[] {
         </span>
       ),
       enableSorting: true,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <ResetPasswordButton userId={row.original.id} userName={row.original.name} />
+      ),
+      enableSorting: false,
     },
   ], []);
 }
@@ -505,6 +599,7 @@ export default function UsersPage() {
                         <p className="text-xs text-muted-foreground">
                           Joined {new Date(u.joined).toLocaleDateString()}
                         </p>
+                        <ResetPasswordButton userId={u.id} userName={u.name} />
                       </div>
                     );
                   })

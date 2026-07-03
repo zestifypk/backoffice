@@ -9,6 +9,8 @@ import {
   RegisterBodySchema,
   CreateUserBodySchema,
   UpdateUserBodySchema,
+  ChangePasswordBodySchema,
+  ResetPasswordBodySchema,
 } from '@/lib/schemas';
 
 const registry = new OpenAPIRegistry();
@@ -73,6 +75,20 @@ registry.registerPath({
       description: 'Logged out',
       content: { 'application/json': { schema: z.object({ success: z.boolean() }) } },
     },
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/auth/change-password',
+  tags: ['Auth'],
+  summary: 'Change own password',
+  description: 'Authenticated user changes their own password. Requires the current password for verification.',
+  request: { body: { required: true, content: { 'application/json': { schema: ChangePasswordBodySchema } } } },
+  responses: {
+    200: { description: 'Password changed', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
+    400: { description: 'Current password incorrect or validation error', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
   },
 });
 
@@ -196,6 +212,25 @@ registry.registerPath({
       description: 'User deactivated',
       content: { 'application/json': { schema: z.object({ message: z.string() }) } },
     },
+    401: r401,
+    403: r403,
+    404: r404,
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/users/{id}/reset-password',
+  tags: ['Users'],
+  summary: 'Reset a user\'s password (admin)',
+  description: 'Requires permission: `users:reset-password`. No current password needed.',
+  request: {
+    params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }),
+    body: { required: true, content: { 'application/json': { schema: ResetPasswordBodySchema } } },
+  },
+  responses: {
+    200: { description: 'Password reset', content: { 'application/json': { schema: z.object({ message: z.string() }) } } },
+    400: { description: 'Validation error', content: { 'application/json': { schema: ErrorSchema } } },
     401: r401,
     403: r403,
     404: r404,
