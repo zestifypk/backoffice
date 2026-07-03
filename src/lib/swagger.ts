@@ -14,6 +14,8 @@ import {
   OrderSchema,
   CreateOrderBodySchema,
   UpdateOrderBodySchema,
+  GetAllOrdersQuerySchema,
+  PostExOrderSchema,
 } from '@/lib/schemas';
 
 const registry = new OpenAPIRegistry();
@@ -391,6 +393,26 @@ registry.registerPath({
     400: { description: 'No file or wrong file type', content: { 'application/json': { schema: ErrorSchema } } },
     401: r401,
     403: r403,
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/orders/postex',
+  tags: ['Orders'],
+  summary: 'Fetch orders from PostEx',
+  description:
+    'Requires permission: `orders:postex-sync`. Proxies PostEx\'s get-all-order endpoint — read-only, does not touch the local `orders` table.',
+  request: { query: GetAllOrdersQuerySchema },
+  responses: {
+    200: {
+      description: 'Array of orders reported by PostEx',
+      content: { 'application/json': { schema: z.array(PostExOrderSchema) } },
+    },
+    400: { description: 'Invalid query params', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    502: { description: 'PostEx API unreachable or returned an error', content: { 'application/json': { schema: ErrorSchema } } },
   },
 });
 

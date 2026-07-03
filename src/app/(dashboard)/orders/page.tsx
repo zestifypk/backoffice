@@ -16,6 +16,7 @@ import {
   Loader2, RefreshCw, Upload, Pencil, Trash2,
 } from 'lucide-react';
 import type { Order, OrderType, OrderStatus } from '@/types';
+import PostexSyncPanel from './PostexSyncPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -650,6 +651,7 @@ function useColumns(
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
+  const [tab, setTab] = useState<'local' | 'postex'>('local');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -720,18 +722,44 @@ export default function OrdersPage() {
             Manage PostEx courier orders — create, track, and bulk upload.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setUploadOpen(true)}>
-            <Upload className="w-4 h-4" />
-            Upload Excel
-          </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4" />
-            New order
-          </Button>
-        </div>
+        {tab === 'local' && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setUploadOpen(true)}>
+              <Upload className="w-4 h-4" />
+              Upload Excel
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4" />
+              New order
+            </Button>
+          </div>
+        )}
       </div>
 
+      <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted p-1 w-fit">
+        <button
+          type="button"
+          onClick={() => setTab('local')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            tab === 'local' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Orders
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('postex')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            tab === 'postex' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Sync from PostEx
+        </button>
+      </div>
+
+      {tab === 'postex' && <PostexSyncPanel />}
+
+      {tab === 'local' && (
       <Card className="shadow-sm">
         <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-border">
           <div className="relative flex-1">
@@ -879,6 +907,7 @@ export default function OrdersPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       <CreateOrderModal open={createOpen} onOpenChange={setCreateOpen} onCreated={loadOrders} />
       <EditOrderModal
