@@ -15,7 +15,7 @@ export const UserSchema = z
   .object({
     id: z.number().int().openapi({ example: 1 }),
     name: z.string().openapi({ example: 'Jane Doe' }),
-    email: z.string().email().openapi({ example: 'jane@example.com' }),
+    email: z.email().openapi({ example: 'jane@example.com' }),
     status: UserStatusSchema,
     joined: z.string().openapi({ format: 'date-time', example: '2024-01-01T00:00:00.000Z' }),
     deletedAt: z.string().nullable().optional().openapi({ format: 'date-time', example: null }),
@@ -59,7 +59,7 @@ export const ErrorSchema = z
 
 export const LoginBodySchema = z
   .object({
-    email: z.string().email().openapi({ example: 'admin@example.com' }),
+    email: z.email().openapi({ example: 'admin@example.com' }),
     password: z.string().min(1).openapi({ example: 'Admin@12345' }),
   })
   .openapi('LoginBody');
@@ -67,7 +67,7 @@ export const LoginBodySchema = z
 export const RegisterBodySchema = z
   .object({
     name: z.string().min(1, 'name is required').openapi({ example: 'Jane Doe' }),
-    email: z.string().email('A valid email is required').openapi({ example: 'jane@example.com' }),
+    email: z.email('A valid email is required').openapi({ example: 'jane@example.com' }),
     password: z
       .string()
       .min(8, 'password must be at least 8 characters')
@@ -78,7 +78,7 @@ export const RegisterBodySchema = z
 export const CreateUserBodySchema = z
   .object({
     name: z.string().min(1, 'name is required').openapi({ example: 'Jane Doe' }),
-    email: z.string().email('A valid email is required').openapi({ example: 'jane@example.com' }),
+    email: z.email('A valid email is required').openapi({ example: 'jane@example.com' }),
     password: z
       .string()
       .min(8, 'password must be at least 8 characters')
@@ -104,7 +104,7 @@ export const CreateUserBodySchema = z
 export const UpdateUserBodySchema = z
   .object({
     name: z.string().min(1).optional().openapi({ example: 'Jane Updated' }),
-    email: z.string().email('A valid email is required').optional().openapi({ example: 'new@example.com' }),
+    email: z.email('A valid email is required').optional().openapi({ example: 'new@example.com' }),
     status: UserStatusSchema.optional(),
     roles: z
       .array(z.string())
@@ -122,6 +122,19 @@ export const UpdateUserBodySchema = z
       }),
   })
   .openapi('UpdateUserBody');
+
+export const ChangePasswordBodySchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required').openapi({ example: 'OldPass@123' }),
+    newPassword: z.string().min(8, 'New password must be at least 8 characters').openapi({ example: 'NewPass@456' }),
+  })
+  .openapi('ChangePasswordBody');
+
+export const ResetPasswordBodySchema = z
+  .object({
+    newPassword: z.string().min(8, 'Password must be at least 8 characters').openapi({ example: 'Reset@12345' }),
+  })
+  .openapi('ResetPasswordBody');
 
 // ── Inferred TypeScript types ─────────────────────────────────────────────────
 

@@ -115,3 +115,19 @@ export async function hardDeleteUser(id: number): Promise<boolean> {
   );
   return result.affectedRows > 0;
 }
+
+export async function findPasswordHashById(id: number): Promise<string | null> {
+  const [rows] = await pool.execute<UserRow[]>(
+    `SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+    [id]
+  );
+  return rows[0]?.password_hash ?? null;
+}
+
+export async function updatePasswordHash(id: number, passwordHash: string): Promise<boolean> {
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE users SET password_hash = ? WHERE id = ? AND deleted_at IS NULL`,
+    [passwordHash, id]
+  );
+  return result.affectedRows > 0;
+}
