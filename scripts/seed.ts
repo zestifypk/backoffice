@@ -75,11 +75,12 @@ async function main() {
   const userRoleId    = await upsertRole('user',    'Standard user');
 
   const permDefs: [string, string][] = [
-    ['users:read',        'Read users'],
-    ['users:create',      'Create users'],
-    ['users:assign-role', 'Assign role to users'],
-    ['roles:read',        'Read roles'],
-    ['permissions:read',  'Read permissions'],
+    ['users:read',           'Read users'],
+    ['users:create',         'Create users'],
+    ['users:assign-role',    'Assign role to users'],
+    ['users:reset-password', 'Allow resetting any user password'],
+    ['roles:read',           'Read roles'],
+    ['permissions:read',     'Read permissions'],
   ];
 
   const permIds = await Promise.all(permDefs.map(([n, d]) => upsertPermission(n, d)));
