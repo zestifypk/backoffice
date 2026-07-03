@@ -209,6 +209,54 @@ export const UpdateOrderBodySchema = z
   })
   .openapi('UpdateOrderBody');
 
+// ── PostEx order sync (remote fetch, not the local `orders` table) ────────────
+
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date in YYYY-MM-DD format');
+
+export const GetAllOrdersQuerySchema = z
+  .object({
+    startDate: isoDate.openapi({ example: '2026-07-01' }),
+    endDate: isoDate.openapi({ example: '2026-07-03' }),
+    orderStatusId: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(18)
+      .openapi({ example: 0, description: '0 = all statuses' }),
+  })
+  .openapi('GetAllOrdersQuery');
+
+export const PostExOrderSchema = z
+  .object({
+    customerName: z.string().openapi({ example: 'Abid Hussain' }),
+    customerPhone: z.string().openapi({ example: '03004408092' }),
+    deliveryAddress: z.string().openapi({ example: 'House No. 39, Street No. 16, Mehmood Booti, Lahore' }),
+    invoicePayment: z.number().openapi({ example: 599 }),
+    orderDetail: z.string().openapi({ example: 'MOBILE MAT' }),
+    orderRefNumber: z.string().openapi({ example: 'MAT16' }),
+    transactionTax: z.number().openapi({ example: 0 }),
+    transactionFee: z.number().openapi({ example: 0 }),
+    trackingNumber: z.string().openapi({ example: '27425770000799' }),
+    transactionDate: z.string().openapi({ example: '2026-07-03T00:03:52.000+0500' }),
+    upfrontPayment: z.number().openapi({ example: 0 }),
+    merchantName: z.string().openapi({ example: 'Zestify' }),
+    transactionStatus: z.string().openapi({ example: 'Booked' }),
+    reversalTax: z.number().openapi({ example: 0 }),
+    reversalFee: z.number().openapi({ example: 0 }),
+    cityName: z.string().openapi({ example: 'Lahore' }),
+    pickupAddress: z.string().openapi({ example: '5th Floor Zohra Heights Gulberg Main Market Lahore' }),
+    transactionNotes: z.string().nullable().optional().openapi({ example: 'CALL PLEASE' }),
+    reservePayment: z.number().openapi({ example: 0 }),
+    balancePayment: z.number().openapi({ example: 0 }),
+    bookingWeight: z.number().openapi({ example: 0.2 }),
+    items: z.number().int().openapi({ example: 1 }),
+    invoiceDivision: z.number().int().openapi({ example: 1 }),
+    returnAddress: z.string().openapi({ example: '5th Floor Zohra Heights Gulberg Main Market Lahore' }),
+  })
+  .openapi('PostExOrder');
+
 // ── Inferred TypeScript types ─────────────────────────────────────────────────
 
 export type CreateUserInput   = z.infer<typeof CreateUserBodySchema>;
@@ -217,3 +265,5 @@ export type LoginInput        = z.infer<typeof LoginBodySchema>;
 export type RegisterInput     = z.infer<typeof RegisterBodySchema>;
 export type CreateOrderInput  = z.infer<typeof CreateOrderBodySchema>;
 export type UpdateOrderInput  = z.infer<typeof UpdateOrderBodySchema>;
+export type GetAllOrdersInput = z.infer<typeof GetAllOrdersQuerySchema>;
+export type PostExOrder       = z.infer<typeof PostExOrderSchema>;
