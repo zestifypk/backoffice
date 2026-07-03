@@ -54,3 +54,28 @@ export interface ActivityItem {
   time: string;
 }
 
+export type OrderType   = 'Normal' | 'Reversed' | 'Replacement' | 'Overland';
+export type OrderStatus = 'pending' | 'booked' | 'in_transit' | 'delivered' | 'returned' | 'cancelled';
+
+export interface Order {
+  id: number;
+  reference_number: string;
+  order_amount: number;
+  order_detail: string | null;
+  customer_name: string;
+  customer_phone: string;
+  order_address: string;
+  city: string;
+  items: number;
+  airway_bill_copies: number;
+  notes: string | null;
+  address_code: string | null;
+  return_address_code: string | null;
+  order_type: OrderType;
+  booking_weight: number | null;
+  status: OrderStatus;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
