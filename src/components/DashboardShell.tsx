@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   LogOut,
   Menu,
-  X,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -18,9 +18,10 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const NAV = [
-  { href: '/',       label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/users',  label: 'Users',     icon: Users },
-  { href: '/access', label: 'Access',    icon: ShieldCheck },
+  { href: '/',          label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/users',     label: 'Users',     icon: Users },
+  { href: '/access',    label: 'Access',    icon: ShieldCheck },
+  { href: '/settings',  label: 'Settings',  icon: Settings },
 ];
 
 function NavContent({
