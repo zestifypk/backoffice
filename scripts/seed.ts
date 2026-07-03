@@ -81,6 +81,10 @@ async function main() {
     ['users:reset-password', 'Allow resetting any user password'],
     ['roles:read',           'Read roles'],
     ['permissions:read',     'Read permissions'],
+    ['orders:read',          'View orders list and detail'],
+    ['orders:create',        'Create new orders'],
+    ['orders:update',        'Update order status and fields'],
+    ['orders:delete',        'Delete orders'],
   ];
 
   const permIds = await Promise.all(permDefs.map(([n, d]) => upsertPermission(n, d)));
