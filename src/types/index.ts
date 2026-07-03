@@ -4,6 +4,7 @@ export interface User {
   email: string;
   status: 'Active' | 'Inactive';
   joined: string;
+  deletedAt?: string | null;
   roles?: string[];
   permissions?: string[];
 }
@@ -52,3 +53,4 @@ export interface ActivityItem {
   message: string;
   time: string;
 }
+
