@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { RefreshCw, Loader2, DownloadCloud, Search } from 'lucide-react';
-import type { PostExOrder } from '@/lib/schemas';
+import { RefreshCw, Loader2, DownloadCloud, Search, CheckCircle2, XCircle } from 'lucide-react';
+import type { PostExOrder, SyncTrackingNumbersResult } from '@/lib/schemas';
 import { POSTEX_ORDER_STATUSES } from '@/lib/postex';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,10 @@ export default function PostexSyncPanel() {
   const [pending, startTransition] = useTransition();
   const [trackingSearch, setTrackingSearch] = useState('');
 
+  const [syncPending, startSyncTransition] = useTransition();
+  const [syncResult, setSyncResult] = useState<SyncTrackingNumbersResult | null>(null);
+  const [syncError, setSyncError] = useState('');
+
   const filteredOrders = useMemo(() => {
     const q = trackingSearch.trim().toLowerCase();
     if (!q) return orders;
@@ -48,6 +52,8 @@ export default function PostexSyncPanel() {
   function handleFetch(e: React.SyntheticEvent) {
     e.preventDefault();
     setError('');
+    setSyncResult(null);
+    setSyncError('');
     startTransition(async () => {
       try {
         const params = new URLSearchParams({ startDate, endDate, orderStatusId });
@@ -59,6 +65,34 @@ export default function PostexSyncPanel() {
         setHasFetched(true);
       } catch (err) {
         setError((err as Error).message);
+      }
+    });
+  }
+
+  function handleSync() {
+    if (orders.length === 0) {
+      setSyncError('Fetch orders first.');
+      setSyncResult(null);
+      return;
+    }
+    setSyncError('');
+    setSyncResult(null);
+    startSyncTransition(async () => {
+      try {
+        const items = orders.map((o) => ({
+          referenceNumber: o.orderRefNumber,
+          trackingNumber: o.trackingNumber,
+        }));
+        const res = await fetch('/api/orders/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Failed to sync tracking numbers');
+        setSyncResult(data as SyncTrackingNumbersResult);
+      } catch (err) {
+        setSyncError((err as Error).message);
       }
     });
   }
@@ -111,12 +145,47 @@ export default function PostexSyncPanel() {
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Fetch
           </Button>
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled title="Coming soon">
-            <DownloadCloud className="h-4 w-4" />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleSync}
+            disabled={syncPending || orders.length === 0}
+            title={orders.length === 0 ? 'Fetch orders first' : 'Sync tracking numbers onto local orders'}
+          >
+            {syncPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
             Sync
           </Button>
         </div>
       </form>
+
+      {(syncResult || syncError) && (
+        <div className="px-4 pt-4">
+          {syncError ? (
+            <p className="flex items-center gap-1.5 text-sm rounded-md px-3 py-2 border text-destructive bg-destructive/10 border-destructive/30">
+              <XCircle className="h-4 w-4 shrink-0" />
+              {syncError}
+            </p>
+          ) : syncResult ? (
+            <p className="flex items-start gap-1.5 text-sm rounded-md px-3 py-2 border text-chart-3 bg-chart-3/10 border-chart-3/30">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Synced tracking numbers for <strong>{syncResult.updated}</strong> of{' '}
+                <strong>{syncResult.total}</strong> orders.
+                {syncResult.notFound.length > 0 && (
+                  <>
+                    {' '}
+                    <strong>{syncResult.notFound.length}</strong> reference number
+                    {syncResult.notFound.length !== 1 ? 's' : ''} not found locally:{' '}
+                    {syncResult.notFound.join(', ')}.
+                  </>
+                )}
+              </span>
+            </p>
+          ) : null}
+        </div>
+      )}
 
       {hasFetched && !error && (
         <div className="p-4 border-b border-border">

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Order, OrderType, OrderStatus } from '@/types';
 import PostexSyncPanel from './PostexSyncPanel';
+import FulfillmentPanel from './FulfillmentPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -651,7 +652,7 @@ function useColumns(
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
-  const [tab, setTab] = useState<'local' | 'postex'>('local');
+  const [tab, setTab] = useState<'local' | 'fulfillment' | 'postex'>('local');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -748,6 +749,15 @@ export default function OrdersPage() {
         </button>
         <button
           type="button"
+          onClick={() => setTab('fulfillment')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            tab === 'fulfillment' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Fulfillment
+        </button>
+        <button
+          type="button"
           onClick={() => setTab('postex')}
           className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
             tab === 'postex' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
@@ -756,6 +766,8 @@ export default function OrdersPage() {
           Sync from PostEx
         </button>
       </div>
+
+      {tab === 'fulfillment' && <FulfillmentPanel />}
 
       {tab === 'postex' && <PostexSyncPanel />}
 

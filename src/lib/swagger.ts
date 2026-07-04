@@ -14,8 +14,12 @@ import {
   OrderSchema,
   CreateOrderBodySchema,
   UpdateOrderBodySchema,
+  ScanOrderBodySchema,
+  SyncTrackingNumbersBodySchema,
+  SyncTrackingNumbersResultSchema,
   GetAllOrdersQuerySchema,
   PostExOrderSchema,
+  PostExTrackOrderSchema,
 } from '@/lib/schemas';
 
 const registry = new OpenAPIRegistry();
@@ -397,6 +401,40 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: 'post',
+  path: '/api/orders/scan',
+  tags: ['Orders'],
+  summary: 'Scan a tracking number to mark an order Delivered or Returned',
+  description:
+    'Requires permission: `orders:update`. Looks up the order by `tracking_number` and updates its status — used by the scan-friendly Delivered/Returned tabs.',
+  request: { body: { required: true, content: { 'application/json': { schema: ScanOrderBodySchema } } } },
+  responses: {
+    200: { description: 'Order updated', content: { 'application/json': { schema: OrderSchema } } },
+    400: { description: 'Validation error', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    404: { description: 'No order found with that tracking number', content: { 'application/json': { schema: ErrorSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/orders/sync',
+  tags: ['Orders'],
+  summary: 'Bulk-sync tracking numbers from PostEx onto local orders',
+  description:
+    'Requires permission: `orders:update`. Matches each item by `referenceNumber` against the local `orders.reference_number` and sets `tracking_number` in a single bulk UPDATE. Reference numbers with no matching local order are reported in `notFound`, not created.',
+  request: { body: { required: true, content: { 'application/json': { schema: SyncTrackingNumbersBodySchema } } } },
+  responses: {
+    200: { description: 'Sync result', content: { 'application/json': { schema: SyncTrackingNumbersResultSchema } } },
+    400: { description: 'Validation error', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    409: { description: 'A tracking number is already assigned to a different order', content: { 'application/json': { schema: ErrorSchema } } },
+  },
+});
+
+registry.registerPath({
   method: 'get',
   path: '/api/orders/postex',
   tags: ['Orders'],
@@ -412,6 +450,26 @@ registry.registerPath({
     400: { description: 'Invalid query params', content: { 'application/json': { schema: ErrorSchema } } },
     401: r401,
     403: r403,
+    502: { description: 'PostEx API unreachable or returned an error', content: { 'application/json': { schema: ErrorSchema } } },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/orders/postex/track/{trackingNumber}',
+  tags: ['Orders'],
+  summary: 'Real-time tracking status for a single order from PostEx',
+  description:
+    'Requires permission: `orders:postex-sync`. Proxies PostEx\'s track-order endpoint, including status history.',
+  request: { params: z.object({ trackingNumber: z.string().openapi({ example: '27425770000799' }) }) },
+  responses: {
+    200: {
+      description: 'Order with status history',
+      content: { 'application/json': { schema: PostExTrackOrderSchema } },
+    },
+    401: r401,
+    403: r403,
+    404: { description: 'No tracking data found for this tracking number', content: { 'application/json': { schema: ErrorSchema } } },
     502: { description: 'PostEx API unreachable or returned an error', content: { 'application/json': { schema: ErrorSchema } } },
   },
 });

@@ -163,6 +163,7 @@ export const OrderSchema = z
     return_address_code: z.string().nullable().openapi({ example: '1' }),
     order_type:          OrderTypeSchema,
     booking_weight:      z.number().nullable().openapi({ example: 0.2 }),
+    tracking_number:     z.string().nullable().openapi({ example: '27425770000799' }),
     status:              OrderStatusSchema,
     created_by:          z.number().nullable().openapi({ example: 1 }),
     created_at:          z.string().openapi({ format: 'date-time' }),
@@ -205,9 +206,43 @@ export const UpdateOrderBodySchema = z
     return_address_code: z.string().optional().openapi({ example: '1' }),
     order_type:          OrderTypeSchema.optional(),
     booking_weight:      z.number().min(0).optional().openapi({ example: 0.2 }),
+    tracking_number:     z.string().min(1).optional().openapi({ example: '27425770000799' }),
     status:              OrderStatusSchema.optional(),
   })
   .openapi('UpdateOrderBody');
+
+// ── Scan-to-update (Delivered / Returned tabs) ────────────────────────────────
+
+export const ScanOrderBodySchema = z
+  .object({
+    trackingNumber: z.string().min(1, 'trackingNumber is required').openapi({ example: '27425770000799' }),
+    status: z.enum(['delivered', 'returned']).openapi({ example: 'delivered' }),
+  })
+  .openapi('ScanOrderBody');
+
+// ── Bulk tracking-number sync (matches PostEx orders to local orders by reference #) ──
+
+export const SyncTrackingNumbersBodySchema = z
+  .object({
+    items: z
+      .array(
+        z.object({
+          referenceNumber: z.string().min(1).openapi({ example: 'MAT16' }),
+          trackingNumber: z.string().min(1).openapi({ example: '27425770000799' }),
+        })
+      )
+      .min(1, 'items must contain at least one entry'),
+  })
+  .openapi('SyncTrackingNumbersBody');
+
+export const SyncTrackingNumbersResultSchema = z
+  .object({
+    total: z.number().int().openapi({ example: 10 }),
+    matched: z.number().int().openapi({ example: 8 }),
+    updated: z.number().int().openapi({ example: 8 }),
+    notFound: z.array(z.string()).openapi({ example: ['MAT20', 'MAT21'] }),
+  })
+  .openapi('SyncTrackingNumbersResult');
 
 // ── PostEx order sync (remote fetch, not the local `orders` table) ────────────
 
@@ -257,6 +292,18 @@ export const PostExOrderSchema = z
   })
   .openapi('PostExOrder');
 
+export const PostExTrackingHistoryItemSchema = z
+  .object({
+    transactionStatusMessage: z.string().openapi({ example: 'At Zestify Warehouse' }),
+    transactionStatusMessageCode: z.string().openapi({ example: '0001' }),
+    updatedAt: z.string().openapi({ example: '2026-04-25T15:26:15.000+0500' }),
+  })
+  .openapi('PostExTrackingHistoryItem');
+
+export const PostExTrackOrderSchema = PostExOrderSchema.extend({
+  transactionStatusHistory: z.array(PostExTrackingHistoryItemSchema),
+}).openapi('PostExTrackOrder');
+
 // ── Inferred TypeScript types ─────────────────────────────────────────────────
 
 export type CreateUserInput   = z.infer<typeof CreateUserBodySchema>;
@@ -265,5 +312,9 @@ export type LoginInput        = z.infer<typeof LoginBodySchema>;
 export type RegisterInput     = z.infer<typeof RegisterBodySchema>;
 export type CreateOrderInput  = z.infer<typeof CreateOrderBodySchema>;
 export type UpdateOrderInput  = z.infer<typeof UpdateOrderBodySchema>;
+export type ScanOrderInput    = z.infer<typeof ScanOrderBodySchema>;
+export type SyncTrackingNumbersInput  = z.infer<typeof SyncTrackingNumbersBodySchema>;
+export type SyncTrackingNumbersResult = z.infer<typeof SyncTrackingNumbersResultSchema>;
 export type GetAllOrdersInput = z.infer<typeof GetAllOrdersQuerySchema>;
 export type PostExOrder       = z.infer<typeof PostExOrderSchema>;
+export type PostExTrackOrder  = z.infer<typeof PostExTrackOrderSchema>;

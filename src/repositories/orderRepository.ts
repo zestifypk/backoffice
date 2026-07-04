@@ -19,6 +19,7 @@ interface OrderRow extends RowDataPacket {
   return_address_code: string | null;
   order_type: OrderType;
   booking_weight: string | null;
+  tracking_number: string | null;
   status: OrderStatus;
   created_by: number | null;
   created_at: string;
@@ -42,6 +43,7 @@ function mapOrder(row: OrderRow): Order {
     return_address_code: row.return_address_code,
     order_type: row.order_type,
     booking_weight: row.booking_weight !== null ? Number(row.booking_weight) : null,
+    tracking_number: row.tracking_number,
     status: row.status,
     created_by: row.created_by,
     created_at: row.created_at,
@@ -92,6 +94,14 @@ export async function findByReference(referenceNumber: string): Promise<Order | 
   const [rows] = await pool.execute<OrderRow[]>(
     'SELECT * FROM orders WHERE reference_number = ? LIMIT 1',
     [referenceNumber]
+  );
+  return rows[0] ? mapOrder(rows[0]) : null;
+}
+
+export async function findByTrackingNumber(trackingNumber: string): Promise<Order | null> {
+  const [rows] = await pool.execute<OrderRow[]>(
+    'SELECT * FROM orders WHERE tracking_number = ? LIMIT 1',
+    [trackingNumber]
   );
   return rows[0] ? mapOrder(rows[0]) : null;
 }
@@ -173,6 +183,7 @@ export async function update(id: number, data: UpdateOrderInput): Promise<Order 
     return_address_code: data.return_address_code,
     order_type:          data.order_type,
     booking_weight:      data.booking_weight,
+    tracking_number:     data.tracking_number,
     status:              data.status,
   };
 
@@ -199,4 +210,33 @@ export async function remove(id: number): Promise<boolean> {
     [id]
   );
   return result.affectedRows > 0;
+}
+
+export async function findExistingReferences(referenceNumbers: string[]): Promise<Set<string>> {
+  if (referenceNumbers.length === 0) return new Set();
+  const placeholders = referenceNumbers.map(() => '?').join(', ');
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT reference_number FROM orders WHERE reference_number IN (${placeholders})`,
+    referenceNumbers
+  );
+  return new Set(rows.map((r) => r.reference_number as string));
+}
+
+export async function bulkUpdateTrackingNumbers(
+  items: { referenceNumber: string; trackingNumber: string }[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+
+  const caseClauses = items.map(() => 'WHEN ? THEN ?').join(' ');
+  const caseValues = items.flatMap((i) => [i.referenceNumber, i.trackingNumber]);
+  const referenceNumbers = items.map((i) => i.referenceNumber);
+  const placeholders = referenceNumbers.map(() => '?').join(', ');
+
+  const [result] = await pool.execute<ResultSetHeader>(
+    `UPDATE orders
+     SET tracking_number = CASE reference_number ${caseClauses} END
+     WHERE reference_number IN (${placeholders})`,
+    [...caseValues, ...referenceNumbers]
+  );
+  return result.affectedRows;
 }

@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import logger from '@/lib/logger';
 import * as orderRepository from '@/repositories/orderRepository';
 import type { Order } from '@/types';
-import type { CreateOrderInput, UpdateOrderInput } from '@/lib/schemas';
+import type { CreateOrderInput, UpdateOrderInput, SyncTrackingNumbersInput, SyncTrackingNumbersResult } from '@/lib/schemas';
 import { CreateOrderBodySchema } from '@/lib/schemas';
 
 const log = logger.child({ module: 'orderService' });
@@ -44,10 +44,67 @@ export async function updateOrder(id: number, data: UpdateOrderInput): Promise<O
     if (taken) throw makeError(`Reference "${data.reference_number}" is already used by another order`, 409);
   }
 
+  if (data.tracking_number && data.tracking_number !== existing.tracking_number) {
+    const taken = await orderRepository.findByTrackingNumber(data.tracking_number);
+    if (taken) throw makeError(`Tracking number "${data.tracking_number}" is already assigned to another order`, 409);
+  }
+
   const updated = await orderRepository.update(id, data);
   if (!updated) throw makeError('Order not found', 404);
   log.info({ orderId: id }, 'Order updated');
   return updated;
+}
+
+export async function scanOrder(
+  trackingNumber: string,
+  status: 'delivered' | 'returned'
+): Promise<Order> {
+  log.info({ trackingNumber, status }, 'Scanning order');
+  const order = await orderRepository.findByTrackingNumber(trackingNumber);
+  if (!order) throw makeError(`No order found with tracking number "${trackingNumber}"`, 404);
+
+  const updated = await orderRepository.update(order.id, { status });
+  if (!updated) throw makeError('Order not found', 404);
+  log.info({ orderId: order.id, status }, 'Order status updated via scan');
+  return updated;
+}
+
+export async function syncTrackingNumbers(
+  data: SyncTrackingNumbersInput
+): Promise<SyncTrackingNumbersResult> {
+  // Last occurrence wins if PostEx reports the same reference number twice in one fetch.
+  const byReference = new Map(data.items.map((i) => [i.referenceNumber, i.trackingNumber]));
+  const items = [...byReference.entries()].map(([referenceNumber, trackingNumber]) => ({
+    referenceNumber,
+    trackingNumber,
+  }));
+
+  log.info({ total: items.length }, 'Syncing tracking numbers from PostEx');
+
+  const existing = await orderRepository.findExistingReferences(items.map((i) => i.referenceNumber));
+  const matchedItems = items.filter((i) => existing.has(i.referenceNumber));
+  const notFound = items.filter((i) => !existing.has(i.referenceNumber)).map((i) => i.referenceNumber);
+
+  let updated: number;
+  try {
+    updated = await orderRepository.bulkUpdateTrackingNumbers(matchedItems);
+  } catch (error) {
+    const dbError = error as { code?: string };
+    if (dbError.code === 'ER_DUP_ENTRY') {
+      throw makeError(
+        'One or more tracking numbers are already assigned to a different order in the system',
+        409
+      );
+    }
+    throw error;
+  }
+
+  log.info(
+    { total: items.length, matched: matchedItems.length, updated, notFound: notFound.length },
+    'Tracking number sync complete'
+  );
+
+  return { total: items.length, matched: matchedItems.length, updated, notFound };
 }
 
 export async function deleteOrder(id: number): Promise<void> {
