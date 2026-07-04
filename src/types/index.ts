@@ -73,6 +73,7 @@ export interface Order {
   return_address_code: string | null;
   order_type: OrderType;
   booking_weight: number | null;
+  tracking_number: string | null;
   status: OrderStatus;
   created_by: number | null;
   created_at: string;
