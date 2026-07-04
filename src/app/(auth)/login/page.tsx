@@ -86,8 +86,7 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="email"
                   required
-                  defaultValue="admin@example.com"
-                  placeholder="admin@example.com"
+                  placeholder="user@example.com"
                   className="pl-9"
                 />
               </div>
@@ -103,7 +102,6 @@ export default function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   required
-                  defaultValue="Admin@12345"
                   placeholder="••••••••"
                   className="pl-9"
                 />
