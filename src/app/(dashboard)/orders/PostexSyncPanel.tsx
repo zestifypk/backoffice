@@ -7,6 +7,7 @@ import { POSTEX_ORDER_STATUSES } from '@/lib/postex';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
@@ -42,6 +43,7 @@ export default function PostexSyncPanel() {
   const [syncPending, startSyncTransition] = useTransition();
   const [syncResult, setSyncResult] = useState<SyncTrackingNumbersResult | null>(null);
   const [syncError, setSyncError] = useState('');
+  const [syncStatus, setSyncStatus] = useState(false);
 
   const filteredOrders = useMemo(() => {
     const q = trackingSearch.trim().toLowerCase();
@@ -82,11 +84,12 @@ export default function PostexSyncPanel() {
         const items = orders.map((o) => ({
           referenceNumber: o.orderRefNumber,
           trackingNumber: o.trackingNumber,
+          transactionStatus: o.transactionStatus,
         }));
         const res = await fetch('/api/orders/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items }),
+          body: JSON.stringify({ items, syncStatus }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to sync tracking numbers');
@@ -140,7 +143,17 @@ export default function PostexSyncPanel() {
           </Select>
         </div>
 
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="px-sync-status"
+              checked={syncStatus}
+              onCheckedChange={setSyncStatus}
+            />
+            <Label htmlFor="px-sync-status" className="text-sm font-normal cursor-pointer">
+              Sync status
+            </Label>
+          </div>
           <Button type="submit" size="sm" className="gap-1.5" disabled={pending}>
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Fetch
@@ -152,7 +165,13 @@ export default function PostexSyncPanel() {
             className="gap-1.5"
             onClick={handleSync}
             disabled={syncPending || orders.length === 0}
-            title={orders.length === 0 ? 'Fetch orders first' : 'Sync tracking numbers onto local orders'}
+            title={
+              orders.length === 0
+                ? 'Fetch orders first'
+                : syncStatus
+                  ? 'Sync tracking numbers, and mark Delivered orders as delivered'
+                  : 'Sync tracking numbers onto local orders'
+            }
           >
             {syncPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
             Sync
@@ -173,6 +192,13 @@ export default function PostexSyncPanel() {
               <span>
                 Synced tracking numbers for <strong>{syncResult.updated}</strong> of{' '}
                 <strong>{syncResult.total}</strong> orders.
+                {syncStatus && (
+                  <>
+                    {' '}
+                    Marked <strong>{syncResult.statusUpdated}</strong> order
+                    {syncResult.statusUpdated !== 1 ? 's' : ''} as delivered.
+                  </>
+                )}
                 {syncResult.notFound.length > 0 && (
                   <>
                     {' '}
