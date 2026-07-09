@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { handleError } from '@/lib/api-helpers';
+import * as orderService from '@/services/orderService';
 import type { RowDataPacket } from 'mysql2';
 
 interface CountRow extends RowDataPacket {
@@ -11,18 +12,15 @@ export async function GET() {
   try {
     const [rows] = await pool.execute<CountRow[]>('SELECT COUNT(*) AS totalUsers FROM users');
     const totalUsers = Number(rows[0]?.totalUsers ?? 0);
+    const orderStats = await orderService.getOrderStats();
 
     return NextResponse.json({
       totalUsers,
-      revenue: 128450,
-      orders: 1093,
-      activeSessions: 237,
-      changes: {
-        totalUsers: 12.4,
-        revenue: 8.1,
-        orders: -3.2,
-        activeSessions: 5.7,
-      },
+      totalOrders: orderStats.total,
+      delivered: orderStats.delivered,
+      returned: orderStats.returned,
+      pending: orderStats.pending,
+      pendingSync: orderStats.pendingSync,
     });
   } catch (error) {
     return handleError(error);

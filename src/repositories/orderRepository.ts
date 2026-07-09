@@ -248,3 +248,39 @@ export async function bulkUpdateTrackingNumbers(
   );
   return result.affectedRows;
 }
+
+export interface OrderStats {
+  total: number;
+  delivered: number;
+  returned: number;
+  pending: number;
+  pendingSync: number;
+}
+
+interface OrderStatsRow extends RowDataPacket {
+  total: number;
+  delivered: number;
+  returned: number;
+  pending: number;
+  pendingSync: number;
+}
+
+export async function getStats(): Promise<OrderStats> {
+  const [rows] = await pool.execute<OrderStatsRow[]>(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(status = 'delivered') AS delivered,
+       SUM(status = 'returned') AS returned,
+       SUM(status NOT IN ('delivered', 'returned')) AS pending,
+       SUM(tracking_number IS NULL) AS pendingSync
+     FROM orders`
+  );
+  const row = rows[0];
+  return {
+    total: Number(row?.total ?? 0),
+    delivered: Number(row?.delivered ?? 0),
+    returned: Number(row?.returned ?? 0),
+    pending: Number(row?.pending ?? 0),
+    pendingSync: Number(row?.pendingSync ?? 0),
+  };
+}

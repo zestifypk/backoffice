@@ -1,13 +1,11 @@
-import { pool } from '@/lib/db';
-import type { RowDataPacket } from 'mysql2';
+import * as orderService from '@/services/orderService';
 import type { ActivityItem } from '@/types';
 import {
-  Users,
-  DollarSign,
   ShoppingBag,
-  Activity,
-  TrendingUp,
-  TrendingDown,
+  PackageCheck,
+  PackageX,
+  Clock,
+  RefreshCw,
   UserPlus,
   Package,
   TriangleAlert,
@@ -23,17 +21,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
-interface CountRow extends RowDataPacket { totalUsers: number }
-
 async function getStats() {
-  const [rows] = await pool.execute<CountRow[]>('SELECT COUNT(*) AS totalUsers FROM users WHERE deleted_at IS NULL');
-  return {
-    totalUsers: Number(rows[0]?.totalUsers ?? 0),
-    revenue: 128450,
-    orders: 1093,
-    activeSessions: 237,
-    changes: { totalUsers: 12.4, revenue: 8.1, orders: -3.2, activeSessions: 5.7 },
-  };
+  return orderService.getOrderStats();
 }
 
 const ACTIVITY: ActivityItem[] = [
@@ -65,36 +54,39 @@ export default async function DashboardPage() {
 
   const cards = [
     {
-      label: 'Total Users',
-      value: stats.totalUsers.toLocaleString(),
-      change: stats.changes.totalUsers,
-      icon: Users,
+      label: 'Total Orders',
+      value: stats.total.toLocaleString(),
+      icon: ShoppingBag,
       color: 'text-chart-1',
       bg: 'bg-chart-1/10',
     },
     {
-      label: 'Revenue',
-      value: `$${stats.revenue.toLocaleString()}`,
-      change: stats.changes.revenue,
-      icon: DollarSign,
+      label: 'Delivered',
+      value: stats.delivered.toLocaleString(),
+      icon: PackageCheck,
       color: 'text-chart-3',
       bg: 'bg-chart-3/10',
     },
     {
-      label: 'Orders',
-      value: stats.orders.toLocaleString(),
-      change: stats.changes.orders,
-      icon: ShoppingBag,
-      color: 'text-chart-4',
-      bg: 'bg-chart-4/10',
+      label: 'Returned',
+      value: stats.returned.toLocaleString(),
+      icon: PackageX,
+      color: 'text-chart-5',
+      bg: 'bg-chart-5/10',
     },
     {
-      label: 'Active Sessions',
-      value: stats.activeSessions.toLocaleString(),
-      change: stats.changes.activeSessions,
-      icon: Activity,
+      label: 'Pending',
+      value: stats.pending.toLocaleString(),
+      icon: Clock,
       color: 'text-chart-2',
       bg: 'bg-chart-2/10',
+    },
+    {
+      label: 'Pending Sync',
+      value: stats.pendingSync.toLocaleString(),
+      icon: RefreshCw,
+      color: 'text-chart-4',
+      bg: 'bg-chart-4/10',
     },
   ];
 
@@ -106,10 +98,9 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {cards.map((card) => {
           const Icon = card.icon;
-          const isPositive = card.change >= 0;
           return (
             <Card key={card.label} className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -120,16 +111,8 @@ export default async function DashboardPage() {
                   <Icon className={`w-4 h-4 ${card.color}`} />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent>
                 <p className="text-2xl font-bold">{card.value}</p>
-                <div className="flex items-center gap-1">
-                  {isPositive
-                    ? <TrendingUp className="w-3 h-3 text-chart-3" />
-                    : <TrendingDown className="w-3 h-3 text-chart-5" />}
-                  <span className={`text-xs font-medium ${isPositive ? 'text-chart-3' : 'text-chart-5'}`}>
-                    {isPositive ? '+' : ''}{card.change}% vs last month
-                  </span>
-                </div>
               </CardContent>
             </Card>
           );
