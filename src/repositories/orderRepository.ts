@@ -223,7 +223,7 @@ export async function findExistingReferences(referenceNumbers: string[]): Promis
 }
 
 export async function bulkUpdateTrackingNumbers(
-  items: { referenceNumber: string; trackingNumber: string }[]
+  items: { referenceNumber: string; trackingNumber: string; status?: OrderStatus }[]
 ): Promise<number> {
   if (items.length === 0) return 0;
 
@@ -232,11 +232,19 @@ export async function bulkUpdateTrackingNumbers(
   const referenceNumbers = items.map((i) => i.referenceNumber);
   const placeholders = referenceNumbers.map(() => '?').join(', ');
 
+  // Only orders whose PostEx status maps to a local status get their `status`
+  // touched; everyone else keeps their existing status (ELSE status).
+  const statusItems = items.filter((i): i is typeof i & { status: OrderStatus } => Boolean(i.status));
+  const statusClause = statusItems.length
+    ? `, status = CASE reference_number ${statusItems.map(() => 'WHEN ? THEN ?').join(' ')} ELSE status END`
+    : '';
+  const statusValues = statusItems.flatMap((i) => [i.referenceNumber, i.status]);
+
   const [result] = await pool.execute<ResultSetHeader>(
     `UPDATE orders
-     SET tracking_number = CASE reference_number ${caseClauses} END
+     SET tracking_number = CASE reference_number ${caseClauses} END${statusClause}
      WHERE reference_number IN (${placeholders})`,
-    [...caseValues, ...referenceNumbers]
+    [...caseValues, ...statusValues, ...referenceNumbers]
   );
   return result.affectedRows;
 }

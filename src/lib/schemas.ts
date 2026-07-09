@@ -229,9 +229,18 @@ export const SyncTrackingNumbersBodySchema = z
         z.object({
           referenceNumber: z.string().min(1).openapi({ example: 'MAT16' }),
           trackingNumber: z.string().min(1).openapi({ example: '27425770000799' }),
+          transactionStatus: z.string().optional().openapi({ example: 'Delivered' }),
         })
       )
       .min(1, 'items must contain at least one entry'),
+    syncStatus: z
+      .boolean()
+      .optional()
+      .default(false)
+      .openapi({
+        example: false,
+        description: 'When true, also mark matched orders as delivered if PostEx reports them as Delivered. Other statuses are left untouched.',
+      }),
   })
   .openapi('SyncTrackingNumbersBody');
 
@@ -240,6 +249,7 @@ export const SyncTrackingNumbersResultSchema = z
     total: z.number().int().openapi({ example: 10 }),
     matched: z.number().int().openapi({ example: 8 }),
     updated: z.number().int().openapi({ example: 8 }),
+    statusUpdated: z.number().int().openapi({ example: 3 }),
     notFound: z.array(z.string()).openapi({ example: ['MAT20', 'MAT21'] }),
   })
   .openapi('SyncTrackingNumbersResult');

@@ -73,17 +73,25 @@ export async function syncTrackingNumbers(
   data: SyncTrackingNumbersInput
 ): Promise<SyncTrackingNumbersResult> {
   // Last occurrence wins if PostEx reports the same reference number twice in one fetch.
-  const byReference = new Map(data.items.map((i) => [i.referenceNumber, i.trackingNumber]));
-  const items = [...byReference.entries()].map(([referenceNumber, trackingNumber]) => ({
+  const byReference = new Map(
+    data.items.map((i) => [i.referenceNumber, { trackingNumber: i.trackingNumber, transactionStatus: i.transactionStatus }])
+  );
+  const items = [...byReference.entries()].map(([referenceNumber, v]) => ({
     referenceNumber,
-    trackingNumber,
+    trackingNumber: v.trackingNumber,
+    // Only "Delivered" flips the local status; every other PostEx status is left alone.
+    status:
+      data.syncStatus && v.transactionStatus?.trim().toLowerCase() === 'delivered'
+        ? ('delivered' as const)
+        : undefined,
   }));
 
-  log.info({ total: items.length }, 'Syncing tracking numbers from PostEx');
+  log.info({ total: items.length, syncStatus: data.syncStatus }, 'Syncing tracking numbers from PostEx');
 
   const existing = await orderRepository.findExistingReferences(items.map((i) => i.referenceNumber));
   const matchedItems = items.filter((i) => existing.has(i.referenceNumber));
   const notFound = items.filter((i) => !existing.has(i.referenceNumber)).map((i) => i.referenceNumber);
+  const statusUpdated = matchedItems.filter((i) => i.status).length;
 
   let updated: number;
   try {
@@ -100,11 +108,11 @@ export async function syncTrackingNumbers(
   }
 
   log.info(
-    { total: items.length, matched: matchedItems.length, updated, notFound: notFound.length },
+    { total: items.length, matched: matchedItems.length, updated, statusUpdated, notFound: notFound.length },
     'Tracking number sync complete'
   );
 
-  return { total: items.length, matched: matchedItems.length, updated, notFound };
+  return { total: items.length, matched: matchedItems.length, updated, statusUpdated, notFound };
 }
 
 export async function deleteOrder(id: number): Promise<void> {
