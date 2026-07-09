@@ -18,6 +18,10 @@ export async function listOrders(filters?: orderRepository.OrderFilters): Promis
   return orderRepository.listAll(filters);
 }
 
+export async function getOrderStats(): Promise<orderRepository.OrderStats> {
+  return orderRepository.getStats();
+}
+
 export async function getOrderById(id: number): Promise<Order> {
   log.info({ orderId: id }, 'Fetching order');
   const order = await orderRepository.findById(id);
