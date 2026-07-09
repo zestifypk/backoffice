@@ -8,7 +8,7 @@ import logger from '@/lib/logger';
 const log = logger.child({ module: 'api/users/[id]' });
 
 export const GET = withPermission(
-  'user_read',
+  'users:read',
   async (_req: NextRequest, ctx: RouteContext, auth: JwtPayload) => {
     try {
       const { id } = await ctx.params;
@@ -28,7 +28,7 @@ export const GET = withPermission(
 );
 
 export const PUT = withPermission(
-  'user_update',
+  'users:update',
   async (req: NextRequest, ctx: RouteContext, auth: JwtPayload) => {
     try {
       const { id } = await ctx.params;
@@ -73,7 +73,7 @@ export const PUT = withPermission(
 );
 
 export const DELETE = withPermission(
-  'user_delete',
+  'users:delete',
   async (_req: NextRequest, ctx: RouteContext, auth: JwtPayload) => {
     try {
       const { id } = await ctx.params;

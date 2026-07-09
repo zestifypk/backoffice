@@ -18,6 +18,7 @@ import {
 import type { Order, OrderType, OrderStatus } from '@/types';
 import PostexSyncPanel from './PostexSyncPanel';
 import FulfillmentPanel from './FulfillmentPanel';
+import { usePermissions } from '@/components/providers/permissions-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -652,6 +653,9 @@ function useColumns(
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
+  const { has } = usePermissions();
+  const canViewPostexSync = has('orders:postex-sync');
+
   const [tab, setTab] = useState<'local' | 'fulfillment' | 'postex'>('local');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -756,20 +760,22 @@ export default function OrdersPage() {
         >
           Fulfillment
         </button>
-        <button
-          type="button"
-          onClick={() => setTab('postex')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            tab === 'postex' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Sync from PostEx
-        </button>
+        {canViewPostexSync && (
+          <button
+            type="button"
+            onClick={() => setTab('postex')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              tab === 'postex' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Sync from PostEx
+          </button>
+        )}
       </div>
 
       {tab === 'fulfillment' && <FulfillmentPanel />}
 
-      {tab === 'postex' && <PostexSyncPanel />}
+      {tab === 'postex' && canViewPostexSync && <PostexSyncPanel />}
 
       {tab === 'local' && (
       <Card className="shadow-sm">

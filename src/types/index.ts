@@ -7,6 +7,8 @@ export interface User {
   deletedAt?: string | null;
   roles?: string[];
   permissions?: string[];
+  /** Permissions granted directly to the user, bypassing roles (subset of `permissions`). */
+  directPermissions?: string[];
 }
 
 export interface Role {

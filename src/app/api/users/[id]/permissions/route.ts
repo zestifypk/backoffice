@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withPermission, handleError, type RouteContext } from '@/lib/api-helpers';
-import { AssignRolesBodySchema } from '@/lib/schemas';
+import { AssignPermissionsBodySchema } from '@/lib/schemas';
 import * as userService from '@/services/userService';
 import type { JwtPayload } from '@/types';
 import logger from '@/lib/logger';
 
-const log = logger.child({ module: 'api/users/[id]/roles' });
+const log = logger.child({ module: 'api/users/[id]/permissions' });
 
 export const PATCH = withPermission(
-  'users:assign-role',
+  'users:assign-permission',
   async (req: NextRequest, ctx: RouteContext, auth: JwtPayload) => {
     try {
       const { id } = await ctx.params;
@@ -18,16 +18,19 @@ export const PATCH = withPermission(
       }
 
       const body = await req.json();
-      const parsed = AssignRolesBodySchema.safeParse(body);
+      const parsed = AssignPermissionsBodySchema.safeParse(body);
       if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
       }
 
-      log.info({ requestedBy: auth.sub, userId, roles: parsed.data.roles }, 'PATCH /api/users/:id/roles');
-      const user = await userService.assignRolesToUser(userId, parsed.data);
+      log.info(
+        { requestedBy: auth.sub, userId, permissions: parsed.data.permissions },
+        'PATCH /api/users/:id/permissions'
+      );
+      const user = await userService.assignPermissionsToUser(userId, parsed.data);
       return NextResponse.json(user);
     } catch (error) {
-      log.error({ error }, 'PATCH /api/users/:id/roles failed');
+      log.error({ error }, 'PATCH /api/users/:id/permissions failed');
       return handleError(error);
     }
   }

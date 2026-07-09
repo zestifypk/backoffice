@@ -9,6 +9,8 @@ import {
   RegisterBodySchema,
   CreateUserBodySchema,
   UpdateUserBodySchema,
+  AssignRolesBodySchema,
+  AssignPermissionsBodySchema,
   ChangePasswordBodySchema,
   ResetPasswordBodySchema,
   OrderSchema,
@@ -119,7 +121,7 @@ registry.registerPath({
   path: '/api/users',
   tags: ['Users'],
   summary: 'List all users',
-  description: 'Requires permission: `user_read`',
+  description: 'Requires permission: `users:read`',
   request: {
     query: z.object({
       includeDeleted: z
@@ -143,7 +145,7 @@ registry.registerPath({
   path: '/api/users',
   tags: ['Users'],
   summary: 'Create a new user',
-  description: 'Requires permission: `user_create`',
+  description: 'Requires permission: `users:create`',
   request: { body: { required: true, content: { 'application/json': { schema: CreateUserBodySchema } } } },
   responses: {
     201: { description: 'User created', content: { 'application/json': { schema: UserSchema } } },
@@ -159,7 +161,7 @@ registry.registerPath({
   path: '/api/users/{id}',
   tags: ['Users'],
   summary: 'Get a single user by ID',
-  description: 'Requires permission: `user_read`',
+  description: 'Requires permission: `users:read`',
   request: { params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }) },
   responses: {
     200: { description: 'User object', content: { 'application/json': { schema: UserSchema } } },
@@ -175,7 +177,7 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'Update user details, roles, and/or direct permissions',
   description:
-    'Requires permission: `user_update`. All fields are optional; `roles` and `permissions` fully replace existing assignments when provided.',
+    'Requires permission: `users:update`. All fields are optional; `roles` and `permissions` fully replace existing assignments when provided.',
   request: {
     params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }),
     body: { required: true, content: { 'application/json': { schema: UpdateUserBodySchema } } },
@@ -195,7 +197,7 @@ registry.registerPath({
   path: '/api/users/{id}',
   tags: ['Users'],
   summary: 'Permanently delete a user (hard delete)',
-  description: 'Requires permission: `user_delete`. Irreversible — removes the record from the database.',
+  description: 'Requires permission: `users:delete`. Irreversible — removes the record from the database.',
   request: { params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }) },
   responses: {
     200: {
@@ -214,7 +216,7 @@ registry.registerPath({
   tags: ['Users'],
   summary: 'Soft-delete a user',
   description:
-    'Requires permission: `user_update`. Sets `deleted_at`; the record stays in the database.',
+    'Requires permission: `users:update`. Sets `deleted_at`; the record stays in the database.',
   request: { params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }) },
   responses: {
     200: {
@@ -250,26 +252,39 @@ registry.registerPath({
   method: 'patch',
   path: '/api/users/{id}/roles',
   tags: ['Users'],
-  summary: 'Append a single role to a user (legacy)',
+  summary: 'Assign roles to a user',
   description:
-    'Adds one role without removing existing assignments. Prefer PUT /api/users/{id} for full role replacement.',
+    'Requires permission: `users:assign-role`. Replaces all current role assignments for the user — pass an empty array to clear all roles.',
   request: {
     params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }),
-    body: {
-      required: true,
-      content: {
-        'application/json': {
-          schema: z.object({ roleName: z.string().openapi({ example: 'admin' }) }),
-        },
-      },
-    },
+    body: { required: true, content: { 'application/json': { schema: AssignRolesBodySchema } } },
   },
   responses: {
-    200: { description: 'Role assigned' },
-    400: { description: 'Missing roleName' },
+    200: { description: 'Updated user with roles applied', content: { 'application/json': { schema: UserSchema } } },
+    400: { description: 'Validation error or unknown role name', content: { 'application/json': { schema: ErrorSchema } } },
     401: r401,
     403: r403,
-    404: { description: 'Role not found' },
+    404: r404,
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/users/{id}/permissions',
+  tags: ['Users'],
+  summary: 'Assign direct permissions to a user',
+  description:
+    'Requires permission: `users:assign-permission`. Grants permissions directly to the user, bypassing the role hierarchy. Replaces all current direct permission assignments — pass an empty array to revoke all direct permissions.',
+  request: {
+    params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }),
+    body: { required: true, content: { 'application/json': { schema: AssignPermissionsBodySchema } } },
+  },
+  responses: {
+    200: { description: 'Updated user with direct permissions applied', content: { 'application/json': { schema: UserSchema } } },
+    400: { description: 'Validation error or unknown permission name', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    404: r404,
   },
 });
 
@@ -460,7 +475,7 @@ registry.registerPath({
   tags: ['Orders'],
   summary: 'Real-time tracking status for a single order from PostEx',
   description:
-    'Requires permission: `orders:postex-sync`. Proxies PostEx\'s track-order endpoint, including status history.',
+    'Requires permission: `orders:postex-track`. Proxies PostEx\'s track-order endpoint, including status history.',
   request: { params: z.object({ trackingNumber: z.string().openapi({ example: '27425770000799' }) }) },
   responses: {
     200: {
@@ -572,7 +587,7 @@ export const swaggerSpec = {
   ...baseSpec,
   tags: [
     { name: 'Auth', description: 'Authentication endpoints (no permission required)' },
-    { name: 'Users', description: 'User CRUD — requires UserManagement role' },
+    { name: 'Users', description: 'User CRUD — requires the relevant users:* permission' },
     { name: 'Orders', description: 'PostEx order management — create, list, update, delete, bulk upload' },
     { name: 'Access', description: 'Roles and permissions catalogue' },
     { name: 'System', description: 'Health, stats, activity' },

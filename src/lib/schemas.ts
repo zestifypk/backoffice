@@ -19,18 +19,25 @@ export const UserSchema = z
     status: UserStatusSchema,
     joined: z.string().openapi({ format: 'date-time', example: '2024-01-01T00:00:00.000Z' }),
     deletedAt: z.string().nullable().optional().openapi({ format: 'date-time', example: null }),
-    roles: z.array(z.string()).optional().openapi({ example: ['UserManagement'] }),
+    roles: z.array(z.string()).optional().openapi({ example: ['user-management'] }),
     permissions: z
       .array(z.string())
       .optional()
-      .openapi({ example: ['user_read', 'user_create'] }),
+      .openapi({ example: ['users:read', 'users:create'] }),
+    directPermissions: z
+      .array(z.string())
+      .optional()
+      .openapi({
+        example: ['orders:postex-track'],
+        description: 'Subset of `permissions` granted directly to the user, bypassing roles.',
+      }),
   })
   .openapi('User');
 
 export const RoleSchema = z
   .object({
     id: z.number().int().openapi({ example: 1 }),
-    name: z.string().openapi({ example: 'UserManagement' }),
+    name: z.string().openapi({ example: 'user-management' }),
     description: z
       .string()
       .nullable()
@@ -41,7 +48,7 @@ export const RoleSchema = z
 export const PermissionSchema = z
   .object({
     id: z.number().int().openapi({ example: 1 }),
-    name: z.string().openapi({ example: 'user_read' }),
+    name: z.string().openapi({ example: 'users:read' }),
     description: z
       .string()
       .nullable()
@@ -88,14 +95,14 @@ export const CreateUserBodySchema = z
       .array(z.string())
       .optional()
       .openapi({
-        example: ['UserManagement'],
+        example: ['user-management'],
         description: 'Role names to assign. Defaults to the "user" role if omitted.',
       }),
     permissions: z
       .array(z.string())
       .optional()
       .openapi({
-        example: ['user_read'],
+        example: ['users:read'],
         description: 'Permission names to grant directly (bypasses role hierarchy).',
       }),
   })
@@ -117,11 +124,35 @@ export const UpdateUserBodySchema = z
       .array(z.string())
       .optional()
       .openapi({
-        example: ['user_read', 'user_update'],
+        example: ['users:read', 'users:update'],
         description: 'Replaces all direct permission assignments when provided.',
       }),
   })
   .openapi('UpdateUserBody');
+
+// ── Role / permission assignment (replaces all assignments for the user) ──────
+
+export const AssignRolesBodySchema = z
+  .object({
+    roles: z
+      .array(z.string().min(1))
+      .openapi({
+        example: ['admin'],
+        description: 'Role names to assign. Replaces all current role assignments — pass an empty array to clear all roles.',
+      }),
+  })
+  .openapi('AssignRolesBody');
+
+export const AssignPermissionsBodySchema = z
+  .object({
+    permissions: z
+      .array(z.string().min(1))
+      .openapi({
+        example: ['users:read'],
+        description: 'Permission names to grant directly, bypassing the role hierarchy. Replaces all current direct permission assignments — pass an empty array to revoke all direct permissions.',
+      }),
+  })
+  .openapi('AssignPermissionsBody');
 
 export const ChangePasswordBodySchema = z
   .object({
@@ -318,6 +349,8 @@ export const PostExTrackOrderSchema = PostExOrderSchema.extend({
 
 export type CreateUserInput   = z.infer<typeof CreateUserBodySchema>;
 export type UpdateUserInput   = z.infer<typeof UpdateUserBodySchema>;
+export type AssignRolesInput       = z.infer<typeof AssignRolesBodySchema>;
+export type AssignPermissionsInput = z.infer<typeof AssignPermissionsBodySchema>;
 export type LoginInput        = z.infer<typeof LoginBodySchema>;
 export type RegisterInput     = z.infer<typeof RegisterBodySchema>;
 export type CreateOrderInput  = z.infer<typeof CreateOrderBodySchema>;
