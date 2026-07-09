@@ -4,7 +4,7 @@ import * as userRepository from '@/repositories/userRepository';
 import * as roleRepository from '@/repositories/roleRepository';
 import * as permissionRepository from '@/repositories/permissionRepository';
 import type { User } from '@/types';
-import type { CreateUserInput, UpdateUserInput } from '@/lib/schemas';
+import type { CreateUserInput, UpdateUserInput, AssignRolesInput, AssignPermissionsInput } from '@/lib/schemas';
 
 const log = logger.child({ module: 'userService' });
 
@@ -15,14 +15,16 @@ function makeError(message: string, statusCode: number): Error & { statusCode: n
 }
 
 async function attachRelations(user: User): Promise<User> {
-  const [roles, permissions] = await Promise.all([
+  const [roles, permissions, directPermissions] = await Promise.all([
     roleRepository.findRolesByUserId(user.id),
     permissionRepository.findPermissionsByUserId(user.id),
+    permissionRepository.findDirectPermissionsByUserId(user.id),
   ]);
   return {
     ...user,
     roles: roles.map((r) => r.name),
     permissions: permissions.map((p) => p.name),
+    directPermissions: directPermissions.map((p) => p.name),
   };
 }
 
@@ -168,10 +170,42 @@ export async function resetPassword(userId: number, newPassword: string): Promis
   log.info({ userId }, 'Password reset by admin');
 }
 
-/** @deprecated Use createUser or updateUser instead */
-export async function assignRole(data: { userId: number; roleName: string }) {
-  const role = await roleRepository.findRoleByName(data.roleName);
-  if (!role) throw makeError('Role not found', 404);
-  await roleRepository.assignRole(data.userId, role.id);
-  return { userId: data.userId, role: role.name };
+export async function assignRolesToUser(userId: number, data: AssignRolesInput): Promise<User> {
+  log.info({ userId, roles: data.roles }, 'Assigning roles to user');
+
+  const user = await userRepository.findById(userId);
+  if (!user) throw makeError('User not found', 404);
+  if (user.deletedAt) throw makeError('Cannot assign roles to a deleted user', 410);
+
+  if (data.roles.length > 0) {
+    const roles = await roleRepository.findRolesByNames(data.roles);
+    const missing = data.roles.filter((n) => !roles.find((r) => r.name === n));
+    if (missing.length > 0) throw makeError(`Unknown roles: ${missing.join(', ')}`, 400);
+    await roleRepository.setRolesForUser(userId, roles.map((r) => r.id));
+  } else {
+    await roleRepository.setRolesForUser(userId, []);
+  }
+
+  log.info({ userId }, 'Roles assigned');
+  return attachRelations(user);
+}
+
+export async function assignPermissionsToUser(userId: number, data: AssignPermissionsInput): Promise<User> {
+  log.info({ userId, permissions: data.permissions }, 'Assigning direct permissions to user');
+
+  const user = await userRepository.findById(userId);
+  if (!user) throw makeError('User not found', 404);
+  if (user.deletedAt) throw makeError('Cannot assign permissions to a deleted user', 410);
+
+  if (data.permissions.length > 0) {
+    const perms = await permissionRepository.findPermissionsByNames(data.permissions);
+    const missing = data.permissions.filter((n) => !perms.find((p) => p.name === n));
+    if (missing.length > 0) throw makeError(`Unknown permissions: ${missing.join(', ')}`, 400);
+    await permissionRepository.setDirectPermissionsForUser(userId, perms.map((p) => p.id));
+  } else {
+    await permissionRepository.setDirectPermissionsForUser(userId, []);
+  }
+
+  log.info({ userId }, 'Direct permissions assigned');
+  return attachRelations(user);
 }
