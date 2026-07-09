@@ -8,7 +8,7 @@ const log = logger.child({ module: 'api/users/[id]/deactivate' });
 
 /** Soft-deletes a user by setting deleted_at. The record stays in the DB. */
 export const PUT = withPermission(
-  'user_update',
+  'users:update',
   async (_req: NextRequest, ctx: RouteContext, auth: JwtPayload) => {
     try {
       const { id } = await ctx.params;

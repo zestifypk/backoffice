@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose';
+import { cookies } from 'next/headers';
 import type { JwtPayload } from '@/types';
 
 function getSecret(): Uint8Array {
@@ -20,4 +21,11 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
   } catch {
     return null;
   }
+}
+
+/** Reads and verifies the auth cookie from a Server Component / layout. */
+export async function getServerAuth(): Promise<JwtPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  return token ? verifyToken(token) : null;
 }

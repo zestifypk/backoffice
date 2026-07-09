@@ -85,6 +85,9 @@ async function main() {
     ['orders:create',        'Create new orders'],
     ['orders:update',        'Update order status and fields'],
     ['orders:delete',        'Delete orders'],
+    ['users:assign-permission', 'Assign direct permissions to users'],
+    ['users:update',          'Update user details, roles, and direct permissions'],
+    ['users:delete',          'Permanently delete users'],
   ];
 
   const permIds = await Promise.all(permDefs.map(([n, d]) => upsertPermission(n, d)));

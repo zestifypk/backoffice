@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { RefreshCw, Loader2, DownloadCloud, Search, CheckCircle2, XCircle } from 'lucide-react';
 import type { PostExOrder, SyncTrackingNumbersResult } from '@/lib/schemas';
 import { POSTEX_ORDER_STATUSES } from '@/lib/postex';
+import { usePermissions } from '@/components/providers/permissions-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,9 @@ function todayIso(): string {
 }
 
 export default function PostexSyncPanel() {
+  const { has } = usePermissions();
+  const canSync = has('orders:update');
+
   const [startDate, setStartDate] = useState(todayIso());
   const [endDate, setEndDate] = useState(todayIso());
   const [orderStatusId, setOrderStatusId] = useState('0');
@@ -144,38 +148,42 @@ export default function PostexSyncPanel() {
         </div>
 
         <div className="flex items-center gap-2 sm:ml-auto">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="px-sync-status"
-              checked={syncStatus}
-              onCheckedChange={setSyncStatus}
-            />
-            <Label htmlFor="px-sync-status" className="text-sm font-normal cursor-pointer">
-              Sync status
-            </Label>
-          </div>
+          {canSync && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="px-sync-status"
+                checked={syncStatus}
+                onCheckedChange={setSyncStatus}
+              />
+              <Label htmlFor="px-sync-status" className="text-sm font-normal cursor-pointer">
+                Sync status
+              </Label>
+            </div>
+          )}
           <Button type="submit" size="sm" className="gap-1.5" disabled={pending}>
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Fetch
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleSync}
-            disabled={syncPending || orders.length === 0}
-            title={
-              orders.length === 0
-                ? 'Fetch orders first'
-                : syncStatus
-                  ? 'Sync tracking numbers, and mark Delivered orders as delivered'
-                  : 'Sync tracking numbers onto local orders'
-            }
-          >
-            {syncPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
-            Sync
-          </Button>
+          {canSync && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleSync}
+              disabled={syncPending || orders.length === 0}
+              title={
+                orders.length === 0
+                  ? 'Fetch orders first'
+                  : syncStatus
+                    ? 'Sync tracking numbers, and mark Delivered orders as delivered'
+                    : 'Sync tracking numbers onto local orders'
+              }
+            >
+              {syncPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
+              Sync
+            </Button>
+          )}
         </div>
       </form>
 

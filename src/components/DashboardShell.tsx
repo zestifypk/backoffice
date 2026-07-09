@@ -16,14 +16,15 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { PermissionsProvider, usePermissions } from '@/components/providers/permissions-provider';
 import { cn } from '@/lib/utils';
 
 const NAV = [
-  { href: '/',          label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/users',     label: 'Users',     icon: Users },
-  { href: '/orders',    label: 'Orders',    icon: Package },
-  { href: '/access',    label: 'Access',    icon: ShieldCheck },
-  { href: '/settings',  label: 'Settings',  icon: Settings },
+  { href: '/',          label: 'Dashboard', icon: LayoutDashboard, permissions: null as string[] | null },
+  { href: '/users',     label: 'Users',     icon: Users,       permissions: ['users:read'] },
+  { href: '/orders',    label: 'Orders',    icon: Package,     permissions: ['orders:read'] },
+  { href: '/access',    label: 'Access',    icon: ShieldCheck, permissions: ['roles:read', 'permissions:read'] },
+  { href: '/settings',  label: 'Settings',  icon: Settings,    permissions: null as string[] | null },
 ];
 
 function NavContent({
@@ -37,6 +38,9 @@ function NavContent({
   onLogout: () => void;
   onNavigate?: () => void;
 }) {
+  const { hasAny } = usePermissions();
+  const visibleNav = NAV.filter((item) => !item.permissions || hasAny(item.permissions));
+
   return (
     <div className="flex flex-col h-full">
       {/* Brand */}
@@ -54,7 +58,7 @@ function NavContent({
 
       {/* Nav links */}
       <nav className="flex-1 p-3 space-y-0.5">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {visibleNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
@@ -96,9 +100,11 @@ function NavContent({
 
 export function DashboardShell({
   userEmail,
+  permissions,
   children,
 }: {
   userEmail: string;
+  permissions: string[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -112,54 +118,56 @@ export function DashboardShell({
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 flex-col shrink-0 border-r border-border bg-sidebar">
-        <NavContent
-          userEmail={userEmail}
-          pathname={pathname}
-          onLogout={handleLogout}
-        />
-      </aside>
-
-      {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile top bar */}
-        <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-background shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
-              <ShieldCheck className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="text-sm font-semibold">Backoffice</span>
-          </div>
-          <ThemeToggle />
-        </header>
-
-        <main className="flex-1 overflow-auto">{children}</main>
-      </div>
-
-      {/* Mobile slide-over */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-60 p-0 bg-sidebar border-sidebar-border">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Navigation</SheetTitle>
-          </SheetHeader>
+    <PermissionsProvider permissions={permissions}>
+      <div className="flex h-screen bg-background overflow-hidden">
+        {/* Desktop sidebar */}
+        <aside className="hidden md:flex w-60 flex-col shrink-0 border-r border-border bg-sidebar">
           <NavContent
             userEmail={userEmail}
             pathname={pathname}
             onLogout={handleLogout}
-            onNavigate={() => setMobileOpen(false)}
           />
-        </SheetContent>
-      </Sheet>
-    </div>
+        </aside>
+
+        {/* Main area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Mobile top bar */}
+          <header className="md:hidden flex items-center justify-between px-4 h-14 border-b border-border bg-background shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+                <ShieldCheck className="w-3.5 h-3.5 text-primary-foreground" />
+              </div>
+              <span className="text-sm font-semibold">Backoffice</span>
+            </div>
+            <ThemeToggle />
+          </header>
+
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
+
+        {/* Mobile slide-over */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-60 p-0 bg-sidebar border-sidebar-border">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation</SheetTitle>
+            </SheetHeader>
+            <NavContent
+              userEmail={userEmail}
+              pathname={pathname}
+              onLogout={handleLogout}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
+      </div>
+    </PermissionsProvider>
   );
 }

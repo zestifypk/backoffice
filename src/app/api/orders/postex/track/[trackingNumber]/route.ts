@@ -7,7 +7,7 @@ import logger from '@/lib/logger';
 const log = logger.child({ module: 'api/orders/postex/track' });
 
 export const GET = withPermission(
-  'orders:postex-sync',
+  'orders:postex-track',
   async (_req: NextRequest, ctx: RouteContext, auth: JwtPayload) => {
     try {
       const { trackingNumber } = await ctx.params;

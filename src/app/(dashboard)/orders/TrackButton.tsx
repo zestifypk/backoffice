@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, Radar } from 'lucide-react';
 import type { PostExTrackOrder } from '@/lib/schemas';
+import { usePermissions } from '@/components/providers/permissions-provider';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -39,6 +40,7 @@ const STATUS_CODE_DOT: Record<string, string> = {
 };
 
 export default function TrackButton({ trackingNumber }: { trackingNumber: string | null }) {
+  const { has } = usePermissions();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -62,6 +64,8 @@ export default function TrackButton({ trackingNumber }: { trackingNumber: string
       .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }
+
+  if (!has('orders:postex-track')) return null;
 
   return (
     <>

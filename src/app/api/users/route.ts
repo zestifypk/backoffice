@@ -8,7 +8,7 @@ import logger from '@/lib/logger';
 const log = logger.child({ module: 'api/users' });
 
 export const GET = withPermission(
-  'user_read',
+  'users:read',
   async (req: NextRequest, _ctx: RouteContext, auth: JwtPayload) => {
     try {
       const includeDeleted = req.nextUrl.searchParams.get('includeDeleted') === 'true';
@@ -23,7 +23,7 @@ export const GET = withPermission(
 );
 
 export const POST = withPermission(
-  'user_create',
+  'users:create',
   async (req: NextRequest, _ctx: RouteContext, auth: JwtPayload) => {
     try {
       const body = await req.json();

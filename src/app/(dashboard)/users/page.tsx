@@ -24,6 +24,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import type { User } from '@/types';
+import { usePermissions } from '@/components/providers/permissions-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -185,7 +186,7 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
                   <SelectItem value="user">user</SelectItem>
                   <SelectItem value="manager">manager</SelectItem>
                   <SelectItem value="admin">admin</SelectItem>
-                  <SelectItem value="UserManagement">UserManagement</SelectItem>
+                  <SelectItem value="user-management">user-management</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -411,6 +412,9 @@ function useColumns(): ColumnDef<User>[] {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  const { has } = usePermissions();
+  const canCreate = has('users:create');
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -471,7 +475,7 @@ export default function UsersPage() {
             Manage accounts, roles, and permissions.
           </p>
         </div>
-        <CreateUserDialog onCreated={loadUsers} />
+        {canCreate && <CreateUserDialog onCreated={loadUsers} />}
       </div>
 
       <Card className="shadow-sm">

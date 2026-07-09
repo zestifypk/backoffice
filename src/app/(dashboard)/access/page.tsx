@@ -10,21 +10,36 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ShieldCheck, Key } from 'lucide-react';
+import { ShieldCheck, Key, UserCog } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { getServerAuth } from '@/lib/jwt';
 
 export default async function AccessPage() {
-  const [roles, permissions] = await Promise.all([
+  const [roles, permissions, auth] = await Promise.all([
     roleRepository.listRoles(),
     permissionRepository.listPermissions(),
+    getServerAuth(),
   ]);
+  const canAssign = auth?.permissions.some(
+    (p) => p === 'users:assign-role' || p === 'users:assign-permission'
+  ) ?? false;
 
   return (
     <div className="p-6 md:p-8 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Access Control</h2>
-        <p className="text-muted-foreground text-sm mt-1">
-          Roles and permissions assigned across the system.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Access Control</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Roles and permissions assigned across the system.
+          </p>
+        </div>
+        {canAssign && (
+          <Button size="sm" className="gap-1.5" render={<Link href="/access/assign" />}>
+            <UserCog className="w-4 h-4" />
+            Assign to user
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
