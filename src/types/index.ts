@@ -1,8 +1,10 @@
+export type UserStatus = 'Active' | 'Inactive';
+
 export interface User {
   id: number;
   name: string;
   email: string;
-  status: 'Active' | 'Inactive';
+  status: UserStatus;
   joined: string;
   deletedAt?: string | null;
   roles?: string[];
