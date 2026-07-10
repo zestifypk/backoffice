@@ -3,7 +3,8 @@ import logger from '@/lib/logger';
 import * as userRepository from '@/repositories/userRepository';
 import * as roleRepository from '@/repositories/roleRepository';
 import * as permissionRepository from '@/repositories/permissionRepository';
-import type { User } from '@/types';
+import * as userStatusChangeRepository from '@/repositories/userStatusChangeRepository';
+import type { User, UserStatus } from '@/types';
 import type { CreateUserInput, UpdateUserInput, AssignRolesInput, AssignPermissionsInput } from '@/lib/schemas';
 
 const log = logger.child({ module: 'userService' });
@@ -124,6 +125,35 @@ export async function updateUser(id: number, data: UpdateUserInput): Promise<Use
   }
 
   log.info({ userId: id }, 'User updated');
+  return attachRelations(updated);
+}
+
+/** Toggles Active/Inactive with a mandatory reason. Inactive users can't log in — see authService.login. */
+export async function setUserStatus(
+  id: number,
+  status: UserStatus,
+  reason: string,
+  changedBy: number
+): Promise<User> {
+  log.info({ userId: id, status, changedBy }, 'Changing user status');
+
+  const existing = await userRepository.findById(id);
+  if (!existing) throw makeError('User not found', 404);
+  if (existing.deletedAt) throw makeError('Cannot change status of a deleted user', 410);
+  if (existing.status === status) throw makeError(`User is already ${status}`, 400);
+
+  const updated = await userRepository.updateUser(id, { status });
+  if (!updated) throw makeError('User not found', 404);
+
+  await userStatusChangeRepository.record({
+    userId: id,
+    previousStatus: existing.status,
+    newStatus: status,
+    reason,
+    changedBy,
+  });
+
+  log.info({ userId: id, status }, 'User status changed');
   return attachRelations(updated);
 }
 
