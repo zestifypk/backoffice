@@ -130,6 +130,18 @@ export const UpdateUserBodySchema = z
   })
   .openapi('UpdateUserBody');
 
+export const UpdateUserStatusBodySchema = z
+  .object({
+    status: UserStatusSchema,
+    reason: z
+      .string()
+      .trim()
+      .min(1, 'reason is required')
+      .max(500, 'reason must be 500 characters or fewer')
+      .openapi({ example: 'Repeated policy violations reported by manager' }),
+  })
+  .openapi('UpdateUserStatusBody');
+
 // ── Role / permission assignment (replaces all assignments for the user) ──────
 
 export const AssignRolesBodySchema = z
@@ -349,6 +361,7 @@ export const PostExTrackOrderSchema = PostExOrderSchema.extend({
 
 export type CreateUserInput   = z.infer<typeof CreateUserBodySchema>;
 export type UpdateUserInput   = z.infer<typeof UpdateUserBodySchema>;
+export type UpdateUserStatusInput = z.infer<typeof UpdateUserStatusBodySchema>;
 export type AssignRolesInput       = z.infer<typeof AssignRolesBodySchema>;
 export type AssignPermissionsInput = z.infer<typeof AssignPermissionsBodySchema>;
 export type LoginInput        = z.infer<typeof LoginBodySchema>;

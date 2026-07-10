@@ -3,6 +3,7 @@ import { signToken } from '@/lib/jwt';
 import * as userRepository from '@/repositories/userRepository';
 import * as roleRepository from '@/repositories/roleRepository';
 import * as permissionRepository from '@/repositories/permissionRepository';
+import * as auditLogRepository from '@/repositories/auditLogRepository';
 import type { User, JwtPayload } from '@/types';
 
 function makeError(message: string, statusCode: number): Error & { statusCode: number } {
@@ -34,10 +35,40 @@ export async function register(data: {
 
 export async function login(data: { email: string; password: string }) {
   const userRow = await userRepository.findByEmail(data.email);
-  if (!userRow) throw makeError('Invalid credentials', 401);
+  if (!userRow) {
+    await auditLogRepository.record({
+      actorUserId: null,
+      actorEmail: data.email,
+      action: 'auth.login_failed',
+      metadata: { reason: 'user_not_found' },
+    });
+    throw makeError('Invalid credentials', 401);
+  }
 
   const valid = await bcrypt.compare(data.password, userRow.password_hash);
-  if (!valid) throw makeError('Invalid credentials', 401);
+  if (!valid) {
+    await auditLogRepository.record({
+      actorUserId: userRow.id,
+      actorEmail: userRow.email,
+      action: 'auth.login_failed',
+      entityType: 'user',
+      entityId: String(userRow.id),
+      metadata: { reason: 'invalid_password' },
+    });
+    throw makeError('Invalid credentials', 401);
+  }
+
+  if (userRow.status === 'Inactive') {
+    await auditLogRepository.record({
+      actorUserId: userRow.id,
+      actorEmail: userRow.email,
+      action: 'auth.login_failed',
+      entityType: 'user',
+      entityId: String(userRow.id),
+      metadata: { reason: 'inactive_account' },
+    });
+    throw makeError('Account is inactive. Contact an administrator.', 403);
+  }
 
   const roles = await roleRepository.findRolesByUserId(userRow.id);
   const permissions = await permissionRepository.findPermissionsByUserId(userRow.id);
@@ -50,6 +81,14 @@ export async function login(data: { email: string; password: string }) {
   };
 
   const token = await signToken(payload);
+
+  await auditLogRepository.record({
+    actorUserId: userRow.id,
+    actorEmail: userRow.email,
+    action: 'auth.login_succeeded',
+    entityType: 'user',
+    entityId: String(userRow.id),
+  });
 
   return {
     token,

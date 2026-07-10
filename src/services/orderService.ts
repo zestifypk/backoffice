@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import logger from '@/lib/logger';
 import * as orderRepository from '@/repositories/orderRepository';
+import * as auditLogRepository from '@/repositories/auditLogRepository';
 import type { Order } from '@/types';
 import type { CreateOrderInput, UpdateOrderInput, SyncTrackingNumbersInput, SyncTrackingNumbersResult } from '@/lib/schemas';
 import { CreateOrderBodySchema } from '@/lib/schemas';
@@ -74,7 +75,8 @@ export async function scanOrder(
 }
 
 export async function syncTrackingNumbers(
-  data: SyncTrackingNumbersInput
+  data: SyncTrackingNumbersInput,
+  actorUserId: number
 ): Promise<SyncTrackingNumbersResult> {
   // Last occurrence wins if PostEx reports the same reference number twice in one fetch.
   const byReference = new Map(
@@ -115,6 +117,20 @@ export async function syncTrackingNumbers(
     { total: items.length, matched: matchedItems.length, updated, statusUpdated, notFound: notFound.length },
     'Tracking number sync complete'
   );
+
+  await auditLogRepository.record({
+    actorUserId,
+    action: 'orders.synced',
+    entityType: 'order',
+    metadata: {
+      total: items.length,
+      matched: matchedItems.length,
+      updated,
+      statusUpdated,
+      notFoundCount: notFound.length,
+      syncStatus: data.syncStatus,
+    },
+  });
 
   return { total: items.length, matched: matchedItems.length, updated, statusUpdated, notFound };
 }

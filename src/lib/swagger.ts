@@ -9,6 +9,7 @@ import {
   RegisterBodySchema,
   CreateUserBodySchema,
   UpdateUserBodySchema,
+  UpdateUserStatusBodySchema,
   AssignRolesBodySchema,
   AssignPermissionsBodySchema,
   ChangePasswordBodySchema,
@@ -226,6 +227,27 @@ registry.registerPath({
     401: r401,
     403: r403,
     404: r404,
+  },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/users/{id}/status',
+  tags: ['Users'],
+  summary: 'Activate or deactivate a user',
+  description:
+    'Requires permission: `users:update`. Inactive users cannot log in. A `reason` is mandatory and is recorded in user_status_changes for audit purposes.',
+  request: {
+    params: z.object({ id: z.coerce.number().int().openapi({ example: 1 }) }),
+    body: { required: true, content: { 'application/json': { schema: UpdateUserStatusBodySchema } } },
+  },
+  responses: {
+    200: { description: 'Updated user', content: { 'application/json': { schema: UserSchema } } },
+    400: { description: 'Validation error, or the user is already in that status', content: { 'application/json': { schema: ErrorSchema } } },
+    401: r401,
+    403: r403,
+    404: r404,
+    410: { description: 'User is deleted', content: { 'application/json': { schema: ErrorSchema } } },
   },
 });
 

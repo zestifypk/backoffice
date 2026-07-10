@@ -23,11 +23,13 @@ import {
   RefreshCw,
   KeyRound,
 } from 'lucide-react';
-import type { User } from '@/types';
+import type { User, UserStatus } from '@/types';
 import { usePermissions } from '@/components/providers/permissions-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -298,6 +300,114 @@ function ResetPasswordButton({ userId, userName }: { userId: number; userName: s
   );
 }
 
+// ── Status toggle (per-row dialog, mandatory reason) ──────────────────────────
+
+function StatusToggleSwitch({
+  userId,
+  userName,
+  currentStatus,
+  onChanged,
+}: {
+  userId: number;
+  userName: string;
+  currentStatus: UserStatus;
+  onChanged: () => void;
+}) {
+  const nextStatus: UserStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
+  const deactivating = nextStatus === 'Inactive';
+
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState('');
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) { setReason(''); setError(''); }
+  }
+
+  function handleSubmit(e: React.SyntheticEvent) {
+    e.preventDefault();
+    setError('');
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/users/${userId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: nextStatus, reason: reason.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Failed to update status');
+        setOpen(false);
+        setReason('');
+        onChanged();
+      } catch (err) {
+        setError((err as Error).message);
+      }
+    });
+  }
+
+  return (
+    <>
+      <Switch
+        checked={currentStatus === 'Active'}
+        onCheckedChange={() => setOpen(true)}
+        aria-label={deactivating ? `Deactivate ${userName}` : `Activate ${userName}`}
+        title={deactivating ? 'Deactivate user' : 'Activate user'}
+      />
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{deactivating ? 'Deactivate' : 'Activate'} user</DialogTitle>
+            <DialogDescription>
+              {deactivating ? (
+                <>This will prevent <strong>{userName}</strong> from logging in.</>
+              ) : (
+                <>This will allow <strong>{userName}</strong> to log in again.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form id={`status-form-${userId}`} onSubmit={handleSubmit} className="space-y-4 pt-1">
+            <div className="space-y-2">
+              <Label htmlFor={`status-reason-${userId}`}>Reason *</Label>
+              <Textarea
+                id={`status-reason-${userId}`}
+                placeholder={`Why are you ${deactivating ? 'deactivating' : 'activating'} this user?`}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2">
+                {error}
+              </p>
+            )}
+          </form>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form={`status-form-${userId}`}
+              disabled={pending || !reason.trim()}
+              className={deactivating ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            >
+              {pending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {deactivating ? 'Deactivate' : 'Activate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ── Sort icon helper ──────────────────────────────────────────────────────────
 
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | false }) {
@@ -309,7 +419,7 @@ function SortIcon({ direction }: { direction: 'asc' | 'desc' | false }) {
 
 // ── Column definitions ────────────────────────────────────────────────────────
 
-function useColumns(): ColumnDef<User>[] {
+function useColumns(canUpdate: boolean, onChanged: () => void): ColumnDef<User>[] {
   return useMemo<ColumnDef<User>[]>(() => [
     {
       accessorKey: 'id',
@@ -402,11 +512,21 @@ function useColumns(): ColumnDef<User>[] {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
-        <ResetPasswordButton userId={row.original.id} userName={row.original.name} />
+        <div className="flex items-center gap-1">
+          <ResetPasswordButton userId={row.original.id} userName={row.original.name} />
+          {canUpdate && (
+            <StatusToggleSwitch
+              userId={row.original.id}
+              userName={row.original.name}
+              currentStatus={row.original.status}
+              onChanged={onChanged}
+            />
+          )}
+        </div>
       ),
       enableSorting: false,
     },
-  ], []);
+  ], [canUpdate, onChanged]);
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -414,6 +534,7 @@ function useColumns(): ColumnDef<User>[] {
 export default function UsersPage() {
   const { has } = usePermissions();
   const canCreate = has('users:create');
+  const canUpdate = has('users:update');
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -423,7 +544,7 @@ export default function UsersPage() {
   const [globalFilter, setGlobalFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const columns = useColumns();
+  const columns = useColumns(canUpdate, loadUsers);
 
   function loadUsers() {
     setLoading(true);
@@ -603,7 +724,17 @@ export default function UsersPage() {
                         <p className="text-xs text-muted-foreground">
                           Joined {new Date(u.joined).toLocaleDateString()}
                         </p>
-                        <ResetPasswordButton userId={u.id} userName={u.name} />
+                        <div className="flex items-center gap-1">
+                          <ResetPasswordButton userId={u.id} userName={u.name} />
+                          {canUpdate && (
+                            <StatusToggleSwitch
+                              userId={u.id}
+                              userName={u.name}
+                              currentStatus={u.status}
+                              onChanged={loadUsers}
+                            />
+                          )}
+                        </div>
                       </div>
                     );
                   })
